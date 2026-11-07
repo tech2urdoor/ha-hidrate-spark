@@ -129,9 +129,16 @@ class ColourTest(Base):
         self.coordinator._store.async_save = mock.AsyncMock()
 
     def set_colour(self, side_effect=None):
-        with mock.patch.object(module.session, "set_colour", mock.AsyncMock(side_effect=side_effect)):
-            with mock.patch.object(self.coordinator, "_session", side_effect=lambda work: work(None)):
-                asyncio.run(self.coordinator.async_set_colour("Blue"))
+        async def session(work):
+            return await work(None)
+
+        writer = mock.AsyncMock(side_effect=side_effect)
+        with mock.patch.object(module.session, "set_colour", writer):
+            with mock.patch.object(self.coordinator, "_session", session):
+                try:
+                    asyncio.run(self.coordinator.async_set_colour("Blue"))
+                finally:
+                    writer.assert_awaited_once_with(None, "Blue")
 
     def test_remembered_once_it_has_read_back(self):
         self.set_colour()
