@@ -46,7 +46,7 @@ Earlier public work that covers parts of this:
 | COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration | Writes, and reads in the probe |
 | SCHEDULE | `b44b03f0-b850-4090-86eb-72863fb3618d` | Commands: glow schedule, clock. *Seen:* reads back as zeros on 53.63 | Writes, and reads in the probe |
 | GLOW_NOW | `a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0` | Make it glow now | Writes |
-| SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL | Reads in the probe, **never writes** |
+| SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL | Reads in the probe. Writes only when you change the glow colour |
 | CAPACITY | `316c4914-1f59-462e-af06-185418674c0c` | Size. *Seen:* absent on 53.63 | Reads in the probe, **never writes** |
 | RUNNING_TOTAL | `6ac24e8b-056c-4077-8221-8f816ade71e6` | Running total | Reads in the probe, **never writes** |
 | FIRMWARE_UPDATE | `00060001-f8ce-11e4-abf4-0002a5d5c51b` | Firmware updates | **Never touches** |
