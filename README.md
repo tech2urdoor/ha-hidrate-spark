@@ -8,8 +8,9 @@ cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer
 > [!WARNING]
 > **Status: early, and proven on one bottle only.** On a Steel with firmware 53.63, installed through
 > HACS, it connects through a Bluetooth proxy with no pairing, syncs by itself while the bottle stays
-> in range, has read a real sip with the right time and a plausible amount, and makes the bottle glow
-> with Find. Glow reminders and calibration haven't been shown to work on any bottle.
+> in range, has read real sips with plausible times and amounts, makes the bottle glow with Find, and
+> has set glow reminders that fired on time with nothing connected. Calibration hasn't been shown to
+> work on any bottle.
 > No other bottle has been tried. Read
 > [what it writes to your bottle](docs/what-it-writes.md) before you install it.
 
@@ -95,7 +96,7 @@ restart.
 | Send glow reminders to the bottle | Off | Off means the bottle is only read. Turning it on replaces the bottle's schedule |
 | Daily goal | 2000 mL | |
 | Wake time, Bedtime | 07:00, 22:00 | Reminders are spaced between these |
-| Minutes between reminders | 60 | 0 for none. The bottle holds 12 at most |
+| Minutes between reminders | 60 | 0 for none. The bottle holds 12 at most, counted from wake time, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
 | Glow | High | High, medium, low, short pulse, short white pulse |
 | Glow at every reminder | Off | Otherwise only when you're behind |
 | Glow on each sip | On | |
@@ -110,14 +111,15 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
-| Steel, 621 mL | 53.63 | Works | Works, one real sip so far | Untested | Reads a value, accuracy unchecked | Works | Untested |
+| Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked | Works | Untested |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Firmware below 40 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
 
 The bottle is called a Steel because of how the app treats its firmware number. Reminders on it
-can't be checked by reading them back, so they stay untested until someone has watched the bottle
-glow on time.
+can't be checked by reading them back, so the proof was watching it glow on time, with nothing
+connected, at minutes the app had never been set to. A schedule set by the app can stay on the
+bottle, so a reminder at a time the app also used proves nothing.
 
 The range 40–99 comes from reading the protocol. Only 53.x has been run. Yours can change that:
 [report your bottle](CONTRIBUTING.md#report-your-bottle).

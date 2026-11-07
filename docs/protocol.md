@@ -139,7 +139,11 @@ sends. See [what-it-writes.md](what-it-writes.md) for when and why.
 ### Schedule rows
 
 *Seen:* on 53.63 SCHEDULE reads back as zeros, so a schedule can't be checked by reading it. The only
-proof is watching the bottle glow, and that hasn't been done yet.
+proof is watching the bottle glow. It did: two rows written for minutes nothing else had used fired on
+time, about four and nine minutes after the connection ended, with the day's total behind pace. The reminder
+flashes three times, spins, and flashes three times again. A sip gives only a brief glow.
+
+A schedule can outlast the device that wrote it, so test with a time no other device has set.
 
 Twelve rows, always. Rows past the last reminder are blank.
 
@@ -170,7 +174,7 @@ Reports on any of these are very welcome.
 
 - How many sips a bottle holds while it's away from home.
 - Whether sips are one-shot on firmware other than 53.63.
-- Whether the reminder writes work once nothing is connected. None of this has been seen yet.
+- Whether a reminder stays quiet once the day's total is ahead of its row. Only a glow when behind has been seen.
 - What makes the bottle glow blue on a refill. *Seen:* on 53.63 it did so with nothing connected, so
   it's the bottle's own firmware and nothing has to ask for it.
 - How the second advertised identity relates to the first.
