@@ -1,1 +1,7 @@
 probe:
+  fields:
+    bottle:
+      required: false
+      selector:
+        config_entry:
+          integration: hidrate_spark

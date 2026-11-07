@@ -52,6 +52,11 @@ def _number(low: int, high: int, step: int, unit: str) -> NumberSelector:
     )
 
 
+def _size_field() -> dict[Any, Any]:
+    """Asked at setup because the first sync can read sips, and their amounts are worked out from this."""
+    return {vol.Required(CONF_SIZE_ML, default=DEFAULTS[CONF_SIZE_ML]): _number(100, 3000, 1, "mL")}
+
+
 class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
@@ -74,18 +79,25 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
         assert self._discovery is not None
         if user_input is not None:
             return self.async_create_entry(
-                title=TITLE, data={CONF_ADDRESS: self._discovery.address}
+                title=TITLE,
+                data={CONF_ADDRESS: self._discovery.address},
+                options={CONF_SIZE_ML: user_input[CONF_SIZE_ML]},
             )
-        self._set_confirm_only()
         return self.async_show_form(
-            step_id="confirm", description_placeholders={"name": self._discovery.name}
+            step_id="confirm",
+            data_schema=vol.Schema(_size_field()),
+            description_placeholders={"name": self._discovery.name},
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_ADDRESS])
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=TITLE, data=user_input)
+            return self.async_create_entry(
+                title=TITLE,
+                data={CONF_ADDRESS: user_input[CONF_ADDRESS]},
+                options={CONF_SIZE_ML: user_input[CONF_SIZE_ML]},
+            )
         current = self._async_current_ids()
         found = {
             info.address: f"{info.name} ({info.address})"
@@ -97,7 +109,8 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
         if not found:
             return self.async_abort(reason="no_devices_found")
         return self.async_show_form(
-            step_id="user", data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(found)})
+            step_id="user",
+            data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(found), **_size_field()}),
         )
 
 

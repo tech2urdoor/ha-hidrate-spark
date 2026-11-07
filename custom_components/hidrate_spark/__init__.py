@@ -1,6 +1,7 @@
 """Reads a HidrateSpark bottle through Bluetooth proxies, so it needs neither the app nor the cloud."""
 from __future__ import annotations
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
@@ -20,15 +21,29 @@ PLATFORMS = [
     Platform.TIME,
 ]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+ATTR_BOTTLE = "bottle"
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
-    async def _probe(_call: ServiceCall) -> ServiceResponse:
-        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
-            return await entry.runtime_data.async_probe()
-        raise HomeAssistantError("No bottle is set up")
+    async def _probe(call: ServiceCall) -> ServiceResponse:
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            raise HomeAssistantError("No bottle is set up")
+        if chosen := call.data.get(ATTR_BOTTLE):
+            entries = [entry for entry in entries if entry.entry_id == chosen]
+            if not entries:
+                raise HomeAssistantError("That bottle isn't set up")
+        elif len(entries) > 1:
+            raise HomeAssistantError("More than one bottle is set up, so choose which to probe")
+        return await entries[0].runtime_data.async_probe()
 
-    hass.services.async_register(DOMAIN, "probe", _probe, supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(
+        DOMAIN,
+        "probe",
+        _probe,
+        schema=vol.Schema({vol.Optional(ATTR_BOTTLE): cv.string}),
+        supports_response=SupportsResponse.ONLY,
+    )
     return True
 
 

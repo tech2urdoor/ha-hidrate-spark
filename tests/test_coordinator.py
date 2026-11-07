@@ -15,6 +15,8 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import custom_components.hidrate_spark as integration  # noqa: E402
+from custom_components.hidrate_spark import config_flow  # noqa: E402
 from custom_components.hidrate_spark import coordinator as module  # noqa: E402
 from custom_components.hidrate_spark import number as number_platform  # noqa: E402
 from custom_components.hidrate_spark import select as select_platform  # noqa: E402
@@ -234,6 +236,64 @@ class StartTest(Base):
         stop()
         for cancel in cancels:
             cancel.assert_called_once_with()
+
+
+class SetupTest(unittest.TestCase):
+    """A bottle that has never met the app is set up from here, so the size has to be asked for."""
+
+    def flow(self):
+        flow = config_flow.HidrateConfigFlow()
+        flow.hass = mock.Mock()
+        flow.context = {}
+        flow._discovery = SimpleNamespace(address=ADDRESS, name="h2oTEST")
+        return flow
+
+    def test_discovery_asks_for_the_size_before_adding(self):
+        result = asyncio.run(self.flow().async_step_confirm())
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["data_schema"]({})["size_ml"], DEFAULTS["size_ml"])
+
+    def test_the_size_chosen_is_what_the_first_sync_uses(self):
+        result = asyncio.run(self.flow().async_step_confirm({"size_ml": 946}))
+        self.assertEqual(result["data"], {"address": ADDRESS})
+        self.assertEqual(result["options"], {"size_ml": 946})
+
+    def test_choosing_by_hand_keeps_the_size_out_of_the_entry_data(self):
+        flow = self.flow()
+        flow.async_set_unique_id = mock.AsyncMock()
+        flow._abort_if_unique_id_configured = mock.Mock()
+        result = asyncio.run(flow.async_step_user({"address": ADDRESS, "size_ml": 946}))
+        self.assertEqual(result["data"], {"address": ADDRESS})
+        self.assertEqual(result["options"], {"size_ml": 946})
+
+
+class ProbeChoiceTest(unittest.TestCase):
+    def run_probe(self, entries, **data):
+        hass = mock.Mock()
+        hass.config_entries.async_loaded_entries.return_value = entries
+        asyncio.run(integration.async_setup(hass, {}))
+        handler = hass.services.async_register.call_args.args[2]
+        return asyncio.run(handler(SimpleNamespace(data=data)))
+
+    @staticmethod
+    def entry(entry_id):
+        return SimpleNamespace(
+            entry_id=entry_id, runtime_data=SimpleNamespace(async_probe=mock.AsyncMock(return_value=entry_id))
+        )
+
+    def test_one_bottle_needs_no_choosing(self):
+        self.assertEqual(self.run_probe([self.entry("a")]), "a")
+
+    def test_the_chosen_bottle_is_the_one_probed(self):
+        self.assertEqual(self.run_probe([self.entry("a"), self.entry("b")], bottle="b"), "b")
+
+    def test_two_bottles_with_no_choice_refuses_rather_than_guessing(self):
+        with self.assertRaisesRegex(integration.HomeAssistantError, "choose"):
+            self.run_probe([self.entry("a"), self.entry("b")])
+
+    def test_an_unknown_choice_is_refused(self):
+        with self.assertRaisesRegex(integration.HomeAssistantError, "isn't set up"):
+            self.run_probe([self.entry("a")], bottle="b")
 
 
 if __name__ == "__main__":

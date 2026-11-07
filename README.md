@@ -56,8 +56,8 @@ the bottle. When it comes home they land on the day you drank them, because each
 long ago it happened. How many a bottle can hold isn't known yet. A sip that comes home late can't
 change what `Today` recorded on the day you drank it, so use `daily_totals` for history.
 
-**Set your bottle's size.** Sip amounts are calculated from it. The default is 621 mL, which is only
-right for one model.
+**Set your bottle's size when you add it.** Sip amounts are calculated from it. The 621 mL it offers
+is only right for one model.
 
 **Watch the battery for the first week.** It syncs every 30 minutes by default. You can change that
 in the options.
@@ -89,10 +89,10 @@ restart.
 
 ### Then
 
-1. Close the Hidrate app, or the bottle won't be free.
+1. Close the Hidrate app if you have it, or the bottle won't be free.
 2. Once Home Assistant hears the bottle, it should offer it under **Settings → Devices & services**.
    If it doesn't, choose **Add integration** and search for HidrateSpark.
-3. Open the integration's **Configure** screen, and set your bottle's size.
+3. Enter your bottle's size when it asks.
 4. Press **Sync now**, then check that `Last sync` updates.
 
 ## Options
@@ -147,7 +147,7 @@ To find your firmware version, run the probe below. You don't need to read any s
 
 **Developer Tools → Actions → `hidrate_spark.probe`** gives a read-only look at the bottle. It takes
 no sips and writes nothing. Its output removes your serial number and Bluetooth addresses, so it's
-safe to paste into an issue. If you have more than one bottle, it only looks at the first.
+safe to paste into an issue. If you have more than one bottle, choose which one.
 
 ## Privacy
 

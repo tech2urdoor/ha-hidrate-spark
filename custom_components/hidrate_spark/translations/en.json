@@ -4,10 +4,13 @@
     "step": {
       "user": {
         "title": "Choose your bottle",
-        "data": { "address": "Bottle" }
+        "data": { "address": "Bottle", "size_ml": "Bottle size" },
+        "data_description": { "size_ml": "Sip amounts are worked out from this." }
       },
       "confirm": {
-        "description": "Set up {name}? The Hidrate app must be closed, because the bottle takes one connection at a time."
+        "description": "Set up {name}? The Hidrate app must be closed, because the bottle takes one connection at a time.",
+        "data": { "size_ml": "Bottle size" },
+        "data_description": { "size_ml": "Sip amounts are worked out from this." }
       }
     },
     "abort": {
@@ -68,7 +71,13 @@
   "services": {
     "probe": {
       "name": "Probe the bottle",
-      "description": "Reads the bottle's firmware, battery and characteristics, with its serial and addresses removed so the result is safe to paste into an issue. Takes no sips and writes nothing."
+      "description": "Reads the bottle's firmware, battery and characteristics, with its serial and addresses removed so the result is safe to paste into an issue. Takes no sips and writes nothing.",
+      "fields": {
+        "bottle": {
+          "name": "Bottle",
+          "description": "Which bottle to probe. Needed only if more than one is set up."
+        }
+      }
     }
   }
 }
