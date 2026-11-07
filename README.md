@@ -74,6 +74,10 @@ in the options.
 
 ### With HACS
 
+[![Open your Home Assistant instance and add this repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tech2urdoor&repository=ha-hidrate-spark&category=integration)
+
+Or by hand:
+
 1. In HACS, open the menu at the top right and choose **Custom repositories**.
 2. Add `https://github.com/tech2urdoor/ha-hidrate-spark` with the type **Integration**.
 3. Find **HidrateSpark Bottle** in HACS, download it, and restart Home Assistant.
