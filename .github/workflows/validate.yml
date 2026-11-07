@@ -21,6 +21,8 @@ jobs:
 
   hacs:
     name: HACS
+    # The HACS action refuses private repositories, so this shows as skipped while the repository is one.
+    if: github.event.repository.private != true
     runs-on: ubuntu-latest
     steps:
       - uses: hacs/action@main
