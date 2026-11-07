@@ -30,6 +30,21 @@ BUTTONS = (
         entity_category=EntityCategory.DIAGNOSTIC,
         press_fn=lambda c: c.async_sync(),
     ),
+    # These only remember a reading in Home Assistant, so a stray press is put right by pressing again.
+    HidrateButtonDescription(
+        key="mark_empty",
+        name="Mark empty",
+        icon="mdi:cup-outline",
+        entity_category=EntityCategory.CONFIG,
+        press_fn=lambda c: c.async_mark(full=False),
+    ),
+    HidrateButtonDescription(
+        key="mark_full",
+        name="Mark full",
+        icon="mdi:cup",
+        entity_category=EntityCategory.CONFIG,
+        press_fn=lambda c: c.async_mark(full=True),
+    ),
     # Off by default: one stray press would throw off every sip until it's recalibrated.
     HidrateButtonDescription(
         key="calibrate_empty",

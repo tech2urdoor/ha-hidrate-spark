@@ -52,7 +52,7 @@ the weight characteristic on firmware 80.18. No code from any of them is used he
 | SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL | Reads in the probe. Writes only when you change the glow colour |
 | CAPACITY | `316c4914-1f59-462e-af06-185418674c0c` | Size. *Seen:* absent on 53.63 | Reads in the probe, **never writes** |
 | RUNNING_TOTAL | `6ac24e8b-056c-4077-8221-8f816ade71e6` | Running total | Reads in the probe, **never writes** |
-| WEIGHT | `1807a063-4e2d-4636-981a-35e93d1c7b94` | A live weight reading, according to the notes linked above. *Seen:* present on 53.63, with read and notify. What it returns there isn't known yet | Reads in the probe |
+| WEIGHT | `1807a063-4e2d-4636-981a-35e93d1c7b94` | A live weight reading. *Seen on 53.63:* a plain read returns 22 bytes. The first two are one big-endian number that follows the water, and the rest didn't change at any level. See [the weight value](#the-weight-value) | Read at each sync, and when a mark button is pressed |
 | FIRMWARE_UPDATE | `00060001-f8ce-11e4-abf4-0002a5d5c51b` | Firmware updates | **Never touches** |
 
 ## Firmware decides the details
@@ -215,3 +215,23 @@ Reports on any of these are very welcome.
 - Which firmware versions each model ships with, and whether the major-version families above hold.
 - What the probe's SETTINGS, COMMANDS and RUNNING_TOTAL reads mean, byte by byte, beyond the size above.
 - Whether writing a schedule every 30 minutes costs noticeable battery.
+
+## The weight value
+
+Measured on one Steel, firmware 53.63, standing upright, by pouring with a measuring cup:
+
+| Bottle | First two bytes | As a number |
+|---|---|---|
+| Empty | `88 6a` | 34922 |
+| Before pouring | `8a a7` | 35495 |
+| 160 mL poured out | `89 c1` | 35265 |
+| The 160 mL poured back | `8a a9` | 35497 |
+| Full to the line, about 650 mL from empty | `8c 05` | 35845 |
+
+That's about 1.42 to 1.44 units per mL. The notes linked above describe firmware 80.18, where the high byte is a
+status (`8a` upright and stable) and the low byte about 1 mL per unit. On 53.63 the high byte changes with the water,
+so it can't be a status there. Which firmware does which is unknown, so the integration doesn't assume a scale, and
+works from two readings the owner marks.
+
+Straight after coming off the charger the value fell 7 units in 17 minutes with the water untouched, about 5 mL, and
+then held. With the base on its charger it read `86 47`, which is outside the range above. Tilted hasn't been tried.

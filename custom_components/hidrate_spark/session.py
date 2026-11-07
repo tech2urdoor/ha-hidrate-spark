@@ -24,6 +24,7 @@ from .protocol import (
     GlowSettings,
     Packet,
     colour_settings,
+    weight_reading,
     history_command,
     is_empty,
     parse_packet,
@@ -32,6 +33,9 @@ from .protocol import (
 
 IDLE_SECONDS = 10.0
 READ_LIMIT_SECONDS = 180.0
+# Two weight reads this far apart, and this close together, mean the bottle is standing still.
+WEIGHT_GAP_SECONDS = 1.0
+WEIGHT_STILL = 10
 
 # Characteristics that are safe to read. SIPS isn't here, because it hands over sips, and
 # FIRMWARE_UPDATE isn't, because nothing here has business touching it.
@@ -69,6 +73,7 @@ class SyncResult:
     serial: str | None
     battery: int | None
     packets: int
+    weight: int | None = None
 
 
 async def read_firmware(client: Any) -> Firmware:
@@ -136,6 +141,19 @@ async def _read_serial(client: Any) -> str | None:
     return data.split(b"\0", 1)[0].decode("ascii", "replace").strip() or None
 
 
+async def read_weight(client: Any, gap_seconds: float = WEIGHT_GAP_SECONDS) -> int | None:
+    """None if it can't be read or the bottle is moving, because a reading in someone's hand isn't a level."""
+    try:
+        first = weight_reading(bytes(await client.read_gatt_char(WEIGHT)))
+        if first is None:
+            return None
+        await asyncio.sleep(gap_seconds)
+        second = weight_reading(bytes(await client.read_gatt_char(WEIGHT)))
+    except Exception:  # noqa: BLE001 - a level is a bonus, so it must not cost the rest of a sync
+        return None
+    return second if second is not None and abs(second - first) <= WEIGHT_STILL else None
+
+
 async def sync(
     client: Any,
     *,
@@ -148,7 +166,7 @@ async def sync(
     idle_seconds: float = IDLE_SECONDS,
     clock: Callable[[], float] = time.time,
 ) -> SyncResult:
-    """Sips first, because they matter most; then battery; then the reminders."""
+    """Sips first, because they matter most; then battery and weight; then the reminders."""
     firmware = await read_firmware(client)
     if not firmware.supported:
         raise UnsupportedBottle(f"Firmware {firmware.raw} isn't a kind this integration can read")
@@ -158,10 +176,11 @@ async def sync(
     )
     serial = known_serial or await _read_serial(client)
     battery = await _read_battery(client)
+    weight = await read_weight(client)
     if glow is not None:
         for uuid, payload in reminder_writes(glow, firmware, size_ml, total_today(), now_seconds()):
             await client.write_gatt_char(uuid, payload)
-    return SyncResult(firmware, serial, battery, packets)
+    return SyncResult(firmware, serial, battery, packets, weight)
 
 
 async def set_colour(client: Any, colour: str) -> None:

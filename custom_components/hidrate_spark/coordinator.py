@@ -64,6 +64,10 @@ class HidrateCoordinator:
         self.firmware: str | None = None
         self.serial: str | None = None
         self.colour: str | None = None
+        self.weight: int | None = None
+        self.weight_at: datetime | None = None
+        self.mark_empty: int | None = None
+        self.mark_full: int | None = None
         self.last_sync: datetime | None = None
         self.last_error: str | None = None
         self._store: Store[dict[str, Any]] = Store(
@@ -104,6 +108,14 @@ class HidrateCoordinator:
             on_goal=bool(self.option(CONF_GLOW_ON_GOAL)),
         )
 
+    def water_level(self) -> tuple[float, datetime, str] | None:
+        """Share of the bottle, as of when, from where. The reading wins unless a sip came after it."""
+        sips = self.log.level()
+        share = protocol.marked_share(self.weight, self.mark_empty, self.mark_full)
+        if share is not None and self.weight_at and (sips is None or sips.at <= self.weight_at):
+            return share, self.weight_at, "reading"
+        return (sips.share, sips.at, "sips") if sips else None
+
     def today(self) -> date:
         return dt_util.now().date()
 
@@ -130,6 +142,11 @@ class HidrateCoordinator:
         self.firmware = data.get("firmware")
         self.serial = data.get("serial")
         self.colour = data.get("colour")
+        self.weight = data.get("weight")
+        self.mark_empty = data.get("mark_empty")
+        self.mark_full = data.get("mark_full")
+        if stamp := data.get("weight_at"):
+            self.weight_at = datetime.fromisoformat(stamp)
         if stamp := data.get("last_sync"):
             self.last_sync = datetime.fromisoformat(stamp)
 
@@ -140,6 +157,10 @@ class HidrateCoordinator:
             "firmware": self.firmware,
             "serial": self.serial,
             "colour": self.colour,
+            "weight": self.weight,
+            "weight_at": self.weight_at.isoformat() if self.weight_at else None,
+            "mark_empty": self.mark_empty,
+            "mark_full": self.mark_full,
             "last_sync": self.last_sync.isoformat() if self.last_sync else None,
         }
 
@@ -291,6 +312,9 @@ class HidrateCoordinator:
                 self.serial = result.serial
                 if result.battery is not None:
                     self.battery = result.battery
+                if result.weight is not None:
+                    self.weight = result.weight
+                    self.weight_at = dt_util.utcnow()
                 self.last_sync = dt_util.utcnow()
                 self.last_error = None
                 self._succeeded = True
@@ -364,6 +388,20 @@ class HidrateCoordinator:
                 protocol.COMMANDS, protocol.calibrate_full_command()
             )
         )
+
+    async def async_mark(self, full: bool) -> None:
+        """Remembers this reading as empty or full. Stays in Home Assistant, nothing goes to the bottle."""
+        weight = await self._async_action(session.read_weight)
+        if weight is None:
+            raise HomeAssistantError("Couldn't get a steady reading. Stand the bottle upright and try again")
+        if full:
+            self.mark_full = weight
+        else:
+            self.mark_empty = weight
+        self.weight = weight
+        self.weight_at = dt_util.utcnow()
+        await self._store.async_save(self._as_dict())
+        self._notify()
 
     async def async_probe(self, weight_seconds: float = 0) -> dict[str, Any]:
         """A read-only look at the bottle, safe to paste in public. Takes no sips and writes nothing."""

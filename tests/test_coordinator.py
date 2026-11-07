@@ -336,8 +336,65 @@ class LevelSensorsTest(Base):
         self.assertEqual(self.sensor("water_left").value_fn(self.coordinator), 500)
         self.assertEqual(
             self.sensor("water_left").attrs_fn(self.coordinator),
-            {"percent": 50, "as_of": at.isoformat()},
+            {"percent": 50, "as_of": at.isoformat(), "source": "sips", "reading": None},
         )
+
+    def marked(self, minutes, weight):
+        at = datetime(2026, 11, 7, 10, minutes, tzinfo=timezone.utc)
+        self.coordinator.mark_empty, self.coordinator.mark_full = 1000, 2000
+        self.coordinator.weight, self.coordinator.weight_at = weight, at
+        self.entry.options["size_ml"] = 500
+        return at
+
+    def test_water_left_comes_from_the_reading_once_marked(self):
+        self.add(0, 400, 300)
+        at = self.marked(5, 1500)
+        self.assertEqual(self.sensor("water_left").value_fn(self.coordinator), 250)
+        self.assertEqual(
+            self.sensor("water_left").attrs_fn(self.coordinator),
+            {"percent": 50, "as_of": at.isoformat(), "source": "reading", "reading": 1500},
+        )
+
+    def test_a_sip_after_the_reading_wins(self):
+        self.marked(5, 1500)
+        self.add(10, 400, 300)
+        self.assertEqual(self.sensor("water_left").attrs_fn(self.coordinator)["source"], "sips")
+
+    def test_a_reading_that_cannot_be_water_falls_back_to_sips(self):
+        self.add(0, 400, 300)
+        self.marked(5, 500)
+        self.assertEqual(self.sensor("water_left").attrs_fn(self.coordinator)["source"], "sips")
+
+    def test_without_both_marks_it_stays_on_sips(self):
+        self.add(0, 400, 300)
+        self.marked(5, 1500)
+        self.coordinator.mark_full = None
+        self.assertEqual(self.sensor("water_left").attrs_fn(self.coordinator)["source"], "sips")
+
+    def test_marks_are_remembered_and_nothing_is_written(self):
+        client = mock.Mock(read_gatt_char=mock.AsyncMock(return_value=bytes.fromhex("8c05")))
+        client.write_gatt_char = mock.AsyncMock()
+        self.coordinator._store = mock.Mock(async_save=mock.AsyncMock())
+
+        async def session(work):
+            return await work(client)
+
+        with mock.patch.object(self.coordinator, "_session", session):
+            asyncio.run(self.coordinator.async_mark(full=True))
+        self.assertEqual(self.coordinator.mark_full, 35845)
+        self.assertEqual(self.coordinator._as_dict()["mark_full"], 35845)
+        client.write_gatt_char.assert_not_called()
+
+    def test_an_unsteady_mark_tells_the_user_and_keeps_the_old_one(self):
+        self.coordinator.mark_full = 2000
+
+        async def session(_work):
+            return None
+
+        with mock.patch.object(self.coordinator, "_session", session):
+            with self.assertRaises(module.HomeAssistantError):
+                asyncio.run(self.coordinator.async_mark(full=True))
+        self.assertEqual(self.coordinator.mark_full, 2000)
 
     def test_last_refill_says_when_and_how_much(self):
         self.add(0, 300, 200)

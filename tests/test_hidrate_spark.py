@@ -336,6 +336,75 @@ class SyncTest(unittest.TestCase):
         self.assertIsNone(self.run_sync(client)[0].battery)
 
 
+class WeightTest(unittest.TestCase):
+    """Bytes as read from a Steel on 53.63. The tail stayed the same at every level."""
+
+    TAIL = bytes.fromhex("002042320020563200206a3200206c3200206e32")
+
+    def client(self, *readings):
+        client = FakeClient()
+        values = iter(readings)
+
+        async def read_gatt_char(uuid):
+            return bytes(next(values)) + self.TAIL
+
+        client.read_gatt_char = read_gatt_char
+        return client
+
+    def read(self, *readings):
+        return asyncio.run(s.read_weight(self.client(*readings), gap_seconds=0))
+
+    def test_the_first_two_bytes_are_big_endian(self):
+        self.assertEqual(p.weight_reading(bytes.fromhex("8aa7") + self.TAIL), 35495)
+        self.assertEqual(p.weight_reading(bytes.fromhex("886a")), 34922)
+
+    def test_too_short_is_unknown(self):
+        self.assertIsNone(p.weight_reading(b"\x8a"))
+
+    def test_a_still_bottle_gives_the_later_read(self):
+        self.assertEqual(self.read(b"\x8c\x06", b"\x8c\x05"), 35845)
+
+    def test_a_moving_bottle_gives_nothing(self):
+        self.assertIsNone(self.read(b"\x8c\x05", b"\x89\xc1"))
+
+    def test_an_unreadable_weight_does_not_stop_a_sync(self):
+        client = FakeClient(notifications=[sip_packet(0)])
+        result = asyncio.run(
+            s.sync(client, size_ml=621, on_sip=lambda pk, at: None, total_today=lambda: 0.0,
+                   now_seconds=lambda: 0, glow=None, idle_seconds=0.01)
+        )
+        self.assertIsNone(result.weight)
+        self.assertEqual(result.battery, 77)
+
+    def test_a_sync_writes_nothing_for_the_weight(self):
+        client = FakeClient()
+        client.reads[p.WEIGHT] = bytes.fromhex("8c05") + self.TAIL
+        result = asyncio.run(
+            s.sync(client, size_ml=621, on_sip=lambda pk, at: None, total_today=lambda: 0.0,
+                   now_seconds=lambda: 0, glow=None, idle_seconds=0.01)
+        )
+        self.assertEqual(result.weight, 35845)
+        self.assertEqual([uuid for uuid, _ in client.writes], [p.SIPS])
+
+    def test_share_between_the_marks(self):
+        self.assertEqual(p.marked_share(34922, 34922, 35845), 0.0)
+        self.assertEqual(p.marked_share(35845, 34922, 35845), 1.0)
+        self.assertAlmostEqual(p.marked_share(35265, 34922, 35845), 0.3716, places=3)
+
+    def test_slightly_past_a_mark_stays_in_range(self):
+        self.assertEqual(p.marked_share(34900, 34922, 35845), 0.0)
+        self.assertEqual(p.marked_share(35900, 34922, 35845), 1.0)
+
+    def test_far_past_a_mark_is_not_a_level(self):
+        self.assertIsNone(p.marked_share(34375, 34922, 35845))
+
+    def test_missing_or_backwards_marks_give_nothing(self):
+        self.assertIsNone(p.marked_share(35000, None, 35845))
+        self.assertIsNone(p.marked_share(35000, 34922, None))
+        self.assertIsNone(p.marked_share(None, 34922, 35845))
+        self.assertIsNone(p.marked_share(35000, 35845, 34922))
+
+
 class FakeService:
     uuid = "0000180f-0000-1000-8000-00805f9b34fb"
     characteristics = [types.SimpleNamespace(uuid=p.BATTERY_LEVEL, properties=["read", "notify"])]

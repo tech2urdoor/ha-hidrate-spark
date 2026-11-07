@@ -31,16 +31,18 @@ def _progress(c: HidrateCoordinator) -> int | None:
 
 
 def _water_left(c: HidrateCoordinator) -> int | None:
-    level = c.log.level()
-    return round(level.share * c.size_ml) if level else None
+    level = c.water_level()
+    return round(level[0] * c.size_ml) if level else None
 
 
 def _water_left_attrs(c: HidrateCoordinator) -> dict[str, Any]:
-    level = c.log.level()
+    level = c.water_level()
     return {
-        "percent": round(level.share * 100) if level else None,
-        # Only a record moves this, so a refill since then won't show until the next sip.
-        "as_of": level.at.isoformat() if level else None,
+        "percent": round(level[0] * 100) if level else None,
+        "as_of": level[1].isoformat() if level else None,
+        # "sips" can't see a refill until the next sip. "reading" needs Mark empty and Mark full pressed.
+        "source": level[2] if level else None,
+        "reading": c.weight,
     }
 
 

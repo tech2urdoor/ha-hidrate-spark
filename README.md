@@ -25,10 +25,11 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Daily totals | `Today` and `Yesterday` sensors. Totals are kept for good, and `Today` carries the last 14 days in its `daily_totals` attribute |
 | Daily goal | `Goal progress` sensor |
 | Glow reminders | Optional, and off until you turn them on. The schedule is built from your goal, wake time, bedtime and frequency, which you can change from the device page or an automation |
-| Water level | `Water left` sensor, in mL, with `percent` and `as_of` attributes. It's where the latest sip stopped, so a refill doesn't show until the next sip, unless the bottle sends a record of it |
+| Water level | `Water left` sensor, in mL, with `percent`, `as_of`, `source` and `reading` attributes. Press `Mark empty` with the bottle empty and `Mark full` with it full, and it reads the bottle's weight value at every sync. Until both are pressed, or if a reading can't be had, it's where the latest sip stopped, so a refill doesn't show until the next sip |
 | Refills | `Last refill` sensor, with `amount_ml` and `exact_time` attributes. Usually noticed when the next sip starts higher than the last one stopped, so it means "by this time" unless `exact_time` is true |
 | Battery | `Battery` sensor |
 | Find my bottle | `Find` button |
+| Marks | `Mark empty` and `Mark full` buttons. These only remember a reading in Home Assistant and write nothing to the bottle, so pressing one again puts it right |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
 | Glow colour | `Glow colour` select with eight colours, disabled by default. Firmware 50 to 59 only. [It changes the bottle's own settings, at your own risk](docs/what-it-writes.md#only-when-you-change-the-glow-colour) |
 
@@ -130,8 +131,15 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
 
 `Last refill` has found one refill in the Steel's real sip records, at about the time one was watched. The bottle
-sending its own record of a refill hasn't been seen. `Water left` reads a value, but its accuracy hasn't been checked
-against a measured amount.
+sending its own record of a refill hasn't been seen.
+
+The weight value has been measured on that Steel with one set of pours. 160 mL out and back moved it and returned it
+to within 2 units, and it stayed in proportion from full to empty. The line on the bottle held about 650 mL by
+measuring cup, so set `Bottle size` to what yours really holds. A level is only as fresh as the last sync. Nothing
+has yet checked it with the bottle tilted or over days, and no other bottle has been tried.
+
+Pouring water out looks like a sip to the bottle, so it counts towards `Today`. On the Steel, the `Battery` reading
+jumped around and fell after charging, so don't rely on it as a measure of charge yet.
 
 All eight glow colours have been tried on the Steel above and work. A change can fail with
 "Not connected", which leaves the colour as it was, so try it again.

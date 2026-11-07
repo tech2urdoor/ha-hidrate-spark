@@ -40,6 +40,8 @@ LIGHTS = {
     "effect_flash": 0x34,
 }
 GOAL_STROBE = 61
+# A reading this far past a mark, as a share of the marks' span, isn't water: the base off the bottle, say.
+MARK_MARGIN = 0.1
 
 # The two RGB565 values SETTINGS holds after the bottle's size. Colour A 0x0001 is a special value.
 GLOW_COLOURS = {
@@ -137,6 +139,21 @@ def parse_packet(data: bytes) -> Packet:
         return Packet(remaining=data[0] if data else 0)
     remaining, unused, seconds, low, high, start, stop = struct.unpack_from("<BxHiHHHH", data)
     return Packet(remaining, True, unused, seconds, low, high, start, stop)
+
+
+def weight_reading(data: bytes) -> int | None:
+    """The first two bytes, big-endian. Seen on 53.63, where the rest of the read doesn't change."""
+    return int.from_bytes(data[:2], "big") if len(data) >= 2 else None
+
+
+def marked_share(reading: int | None, empty: int | None, full: int | None) -> float | None:
+    """How full the bottle is between the two marks. None when a reading can't be a level of this bottle."""
+    if reading is None or empty is None or full is None or full <= empty:
+        return None
+    span = full - empty
+    if not empty - span * MARK_MARGIN <= reading <= full + span * MARK_MARGIN:
+        return None
+    return max(0.0, min(1.0, (reading - empty) / span))
 
 
 def level_share(level: int, low: int, high: int) -> float:

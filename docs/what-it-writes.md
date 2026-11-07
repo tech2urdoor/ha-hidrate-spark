@@ -41,6 +41,9 @@ the only proof is watching it glow, which has been seen on one bottle. They go i
 | Calibrate empty | COMMANDS | One byte telling the bottle it is empty now |
 | Calibrate full | COMMANDS | One byte telling the bottle it is full now |
 
+`Mark empty` and `Mark full` aren't in this table because they write nothing to the bottle. They read WEIGHT and
+remember the number in Home Assistant.
+
 Both calibrate buttons are disabled by default, because a stray press would throw off every sip
 until you calibrate again. Turn them on from the entity's settings when you need them.
 
