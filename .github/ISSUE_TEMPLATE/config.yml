@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: What it writes to a bottle
+    url: https://github.com/tech2urdoor/ha-hidrate-spark/blob/main/docs/what-it-writes.md
+    about: Every write this integration makes, in plain language.

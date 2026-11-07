@@ -1,0 +1,10 @@
+# Notes for the maintainer's own working copy, not part of the project
+HANDOFF.md
+CLAUDE.md
+private/
+
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+*.bak*

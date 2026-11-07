@@ -1,0 +1,55 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Choose your bottle",
+        "data": { "address": "Bottle" }
+      },
+      "confirm": {
+        "description": "Set up {name}? The Hidrate app must be closed, because the bottle takes one connection at a time."
+      }
+    },
+    "abort": {
+      "already_configured": "This bottle is already set up.",
+      "no_devices_found": "No bottle heard. If the Hidrate app is open it's holding the connection, so close it and try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bottle settings",
+        "data": {
+          "manage_reminders": "Send glow reminders to the bottle",
+          "goal_ml": "Daily goal",
+          "wake_time": "Wake time",
+          "sleep_time": "Bedtime",
+          "glow_frequency_min": "Minutes between reminders (0 for none)",
+          "glow_light": "Glow",
+          "glow_always": "Glow at every reminder, even when you're on track",
+          "glow_on_sip": "Glow on each sip",
+          "glow_on_goal": "Glow when the goal is reached",
+          "size_ml": "Bottle size",
+          "sync_minutes": "Minutes between syncs"
+        }
+      }
+    }
+  },
+  "selector": {
+    "glow_light": {
+      "options": {
+        "high": "High glow",
+        "medium": "Medium glow",
+        "low": "Low glow",
+        "pulse": "Short pulse",
+        "pulse_white": "Short white pulse"
+      }
+    }
+  },
+  "services": {
+    "probe": {
+      "name": "Probe the bottle",
+      "description": "Reads the bottle's firmware, battery and characteristics, with its serial and addresses removed so the result is safe to paste into an issue. Takes no sips and writes nothing."
+    }
+  }
+}

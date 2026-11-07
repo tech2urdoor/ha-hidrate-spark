@@ -1,0 +1,74 @@
+name: My bottle isn't supported
+description: Report your bottle so support for it can be added. No coding needed.
+title: "[Bottle] "
+labels: ["bottle report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Reports like this are how the supported range grows.
+
+        **Run the probe first.** In Home Assistant, go to Developer Tools → Actions and run `hidrate_spark.probe`. It's read-only: it takes no sips and writes nothing.
+  - type: input
+    id: model
+    attributes:
+      label: Bottle model and size
+      description: As the box or app names it. Say so if you're not sure.
+      placeholder: e.g. PRO Steel, 500 mL
+    validations:
+      required: true
+  - type: dropdown
+    id: what-happened
+    attributes:
+      label: What happened?
+      options:
+        - Home Assistant didn't find the bottle
+        - It set up, but says the firmware isn't supported
+        - It syncs, but sips or amounts look wrong
+        - It syncs, but reminders don't glow
+        - Everything works, I'm adding my bottle to the table
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: Probe result
+      description: |
+        Paste the whole response. Your serial number and Bluetooth addresses have already been removed, and the name is cut down to `h2o****`. Check that's so before you submit. The result may reflect today's total and your reminder times, so delete those lines if you'd rather not share them.
+
+        If Home Assistant can't find the bottle, write the start of its name and its service UUIDs from a scanner app such as nRF Connect instead. Leave out the address.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: compared
+    attributes:
+      label: What did you see?
+      description: For example, you drank about 200 mL at 10am and Home Assistant showed 150 mL at 10:05. Leave it blank if you only ran the probe.
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: Integration version
+    validations:
+      required: true
+  - type: input
+    id: bluetooth
+    attributes:
+      label: What connects to the bottle?
+      placeholder: e.g. ESP32 Bluetooth proxy, USB adapter
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before you submit
+      options:
+        - label: I've read what I'm pasting, and it has no serial number, Bluetooth address or anything else I don't want public.
+          required: true
+        - label: I've included nothing from Hidrate's app (code, text or images).
+          required: true

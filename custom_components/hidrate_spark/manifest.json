@@ -1,0 +1,27 @@
+{
+  "domain": "hidrate_spark",
+  "name": "HidrateSpark Bottle",
+  "bluetooth": [
+    {
+      "connectable": true,
+      "local_name": "h2o*",
+      "service_uuid": "45855422-6565-4cd7-a2a9-fe8af41b85e8"
+    }
+  ],
+  "categories": [
+    "health_wellbeing"
+  ],
+  "codeowners": [
+    "@tech2urdoor"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "bluetooth_adapters"
+  ],
+  "documentation": "https://github.com/tech2urdoor/ha-hidrate-spark",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/tech2urdoor/ha-hidrate-spark/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
