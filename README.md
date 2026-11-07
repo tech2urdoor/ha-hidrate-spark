@@ -25,6 +25,8 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Daily totals | `Today` and `Yesterday` sensors. Totals are kept for good, and `Today` carries the last 14 days in its `daily_totals` attribute |
 | Daily goal | `Goal progress` sensor |
 | Glow reminders | Optional, and off until you turn them on. The schedule is built from your goal, wake time, bedtime and frequency, which you can change from the device page or an automation |
+| Water level | `Water left` sensor, in mL, with `percent` and `as_of` attributes. It's where the latest sip stopped, so a refill doesn't show until the next sip, unless the bottle sends a record of it |
+| Refills | `Last refill` sensor, with `amount_ml` and `exact_time` attributes. Usually noticed when the next sip starts higher than the last one stopped, so it means "by this time" unless `exact_time` is true |
 | Battery | `Battery` sensor |
 | Find my bottle | `Find` button |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
@@ -126,6 +128,10 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Firmware below 40 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
+
+`Last refill` has found one refill in the Steel's real sip records, at about the time one was watched. The bottle
+sending its own record of a refill hasn't been seen. `Water left` reads a value, but its accuracy hasn't been checked
+against a measured amount.
 
 All eight glow colours have been tried on the Steel above and work. A change can fail with
 "Not connected", which leaves the colour as it was, so try it again.

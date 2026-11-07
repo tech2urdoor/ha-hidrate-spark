@@ -138,16 +138,19 @@ def parse_packet(data: bytes) -> Packet:
     return Packet(remaining, True, unused, seconds, low, high, start, stop)
 
 
-def amount_ml(packet: Packet, size_ml: float) -> float:
-    """Millilitres drunk: the fall in level between the sip's start and stop, as a share of the bottle."""
-    span = max(0, packet.high - min(packet.high, packet.low))
+def level_share(level: int, low: int, high: int) -> float:
+    """How full a sensor level means the bottle is, from 0 to 1. A flat sensor range reads as 0."""
+    span = max(0, high - min(high, low))
     if span == 0:
         return 0.0
+    return max(0.0, min(1.0, (level - min(level, low)) / span))
 
-    def fraction(level: int) -> float:
-        return max(0.0, min(1.0, (level - min(level, packet.low)) / span))
 
-    amount = (fraction(packet.start) - fraction(packet.stop)) * size_ml
+def amount_ml(packet: Packet, size_ml: float) -> float:
+    """Millilitres drunk: the fall in level between the sip's start and stop, as a share of the bottle."""
+    start = level_share(packet.start, packet.low, packet.high)
+    stop = level_share(packet.stop, packet.low, packet.high)
+    amount = (start - stop) * size_ml
     return 0.0 if math.isnan(amount) else amount
 
 

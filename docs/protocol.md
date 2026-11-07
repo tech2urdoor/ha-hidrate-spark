@@ -112,6 +112,11 @@ amount = (fraction(start) - fraction(stop)) * bottle size
 - If the sensor range is flat, the amount is zero.
 - A negative amount means the level rose, which is a refill, and it isn't counted as a sip.
   *Seen:* on 53.63 a refill added no sip in the syncs after it.
+- A rise of at least 5% of the bottle counts as a refill, either within a record, or from where one
+  sip stopped to where the next started. *Seen:* one refill showed up the second way, a rise of about
+  half the bottle, and two sips with no refill between them read a rise of exactly nothing. The first
+  way comes from how the amount works out and hasn't been seen. The 5% is a margin, not a measurement.
+- How full the bottle is comes from the same sum: `fraction(stop) * bottle size` on the latest record.
 - A record with zero amount, bytes 2–3 zero and seconds zero is empty: the bottle has nothing to
   hand over.
 - This integration ignores a repeat with identical levels within two minutes of one it already

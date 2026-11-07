@@ -8,7 +8,7 @@ import sys
 import time
 import unittest
 from datetime import time as dt_time
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -20,6 +20,7 @@ from custom_components.hidrate_spark import config_flow  # noqa: E402
 from custom_components.hidrate_spark import coordinator as module  # noqa: E402
 from custom_components.hidrate_spark import number as number_platform  # noqa: E402
 from custom_components.hidrate_spark import select as select_platform  # noqa: E402
+from custom_components.hidrate_spark import sensor as sensor_platform  # noqa: E402
 from custom_components.hidrate_spark import switch as switch_platform  # noqa: E402
 from custom_components.hidrate_spark import time as time_platform  # noqa: E402
 from custom_components.hidrate_spark.const import (  # noqa: E402
@@ -311,6 +312,42 @@ class StartTest(Base):
         stop()
         for cancel in cancels:
             cancel.assert_called_once_with()
+
+
+class LevelSensorsTest(Base):
+    @staticmethod
+    def sensor(key):
+        return next(s for s in sensor_platform.SENSORS if s.key == key)
+
+    def add(self, minutes, start, stop):
+        packet = module.protocol.Packet(0, True, 1, 0, 100, 500, start, stop)
+        at = datetime(2026, 11, 7, 10, minutes, tzinfo=timezone.utc)
+        self.coordinator.log.add(packet, at, self.coordinator.size_ml)
+        return at
+
+    def test_unknown_until_there_is_a_sip(self):
+        for key in ("water_left", "last_refill"):
+            self.assertIsNone(self.sensor(key).value_fn(self.coordinator))
+            self.assertTrue(all(v is None for v in self.sensor(key).attrs_fn(self.coordinator).values()))
+
+    def test_water_left_follows_the_size_setting(self):
+        at = self.add(0, 400, 300)
+        self.entry.options["size_ml"] = 1000
+        self.assertEqual(self.sensor("water_left").value_fn(self.coordinator), 500)
+        self.assertEqual(
+            self.sensor("water_left").attrs_fn(self.coordinator),
+            {"percent": 50, "as_of": at.isoformat()},
+        )
+
+    def test_last_refill_says_when_and_how_much(self):
+        self.add(0, 300, 200)
+        at = self.add(10, 400, 300)
+        self.entry.options["size_ml"] = 1000
+        self.assertEqual(self.sensor("last_refill").value_fn(self.coordinator), at)
+        self.assertEqual(
+            self.sensor("last_refill").attrs_fn(self.coordinator),
+            {"amount_ml": 500, "exact_time": False},
+        )
 
 
 class SetupTest(unittest.TestCase):

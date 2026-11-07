@@ -606,5 +606,107 @@ class SipLogTest(unittest.TestCase):
         self.assertIsNone(other.add(self.packet, self.at, 621))
 
 
+class LevelTest(unittest.TestCase):
+    """With the default sensor range of 100 to 500, a level of 300 means half full."""
+
+    def setUp(self):
+        self.log = SipLog(LOCAL)
+        self.at = datetime(2026, 11, 7, 10, 0, tzinfo=LOCAL)
+
+    def sip(self, minutes, start, stop):
+        return self.log.add(
+            p.parse_packet(sip_packet(start=start, stop=stop)),
+            self.at + timedelta(minutes=minutes),
+            621,
+        )
+
+    def test_nothing_known_before_the_first_record(self):
+        self.assertIsNone(self.log.level())
+        self.assertEqual(self.log.refills(), [])
+
+    def test_level_is_where_the_latest_sip_stopped(self):
+        self.sip(0, 400, 300)
+        self.assertEqual(self.log.level().share, 0.5)
+        self.assertEqual(self.log.level().at, self.at)
+
+    def test_latest_means_by_time_not_by_reading_order(self):
+        self.sip(10, 300, 200)
+        self.sip(0, 400, 300)
+        self.assertEqual(self.log.level().share, 0.25)
+
+    def test_flat_sensor_range_reads_as_empty_not_a_crash(self):
+        self.assertEqual(p.level_share(300, 200, 200), 0.0)
+
+    def test_level_stays_between_empty_and_full(self):
+        self.assertEqual(p.level_share(50, 100, 500), 0.0)
+        self.assertEqual(p.level_share(900, 100, 500), 1.0)
+
+    def test_first_sip_alone_is_no_refill(self):
+        self.sip(0, 500, 400)
+        self.assertEqual(self.log.refills(), [])
+
+    def test_sips_that_carry_on_are_no_refill(self):
+        self.sip(0, 400, 300)
+        self.sip(10, 300, 200)
+        self.assertEqual(self.log.refills(), [])
+
+    def test_sip_starting_higher_than_the_last_stopped_is_a_refill(self):
+        self.sip(0, 300, 200)
+        self.sip(10, 480, 400)
+        refill = self.log.refills()[0]
+        self.assertEqual(refill.at, self.at + timedelta(minutes=10))
+        self.assertAlmostEqual(refill.share, 0.7)
+        self.assertFalse(refill.exact)
+
+    def test_found_whatever_order_the_sips_were_read_in(self):
+        self.sip(10, 480, 400)
+        self.sip(0, 300, 200)
+        self.assertEqual(len(self.log.refills()), 1)
+
+    def test_small_rise_is_not_a_refill(self):
+        self.sip(0, 400, 300)
+        self.sip(10, 310, 250)
+        self.assertEqual(self.log.refills(), [])
+
+    def test_a_record_whose_level_rose_is_an_exact_refill_and_not_a_sip(self):
+        self.assertIsNone(self.sip(0, 200, 400))
+        refill = self.log.refills()[0]
+        self.assertAlmostEqual(refill.share, 0.5)
+        self.assertTrue(refill.exact)
+        self.assertEqual(self.log.level().share, 0.75)
+        self.assertEqual(self.log.daily, {})
+
+    def test_a_refill_with_its_own_record_isnt_counted_twice(self):
+        self.sip(0, 300, 200)
+        self.sip(5, 200, 400)
+        self.sip(10, 400, 300)
+        self.assertEqual(len(self.log.refills()), 1)
+
+    def test_same_rise_read_twice_counts_once(self):
+        self.sip(0, 200, 400)
+        self.sip(1, 200, 400)
+        self.assertEqual(len(self.log.rises), 1)
+
+    def test_rises_survive_a_restart(self):
+        self.sip(0, 200, 400)
+        other = SipLog(LOCAL)
+        other.load(self.log.as_dict())
+        self.assertEqual(other.rises, self.log.rises)
+
+    def test_a_saved_log_from_before_rises_still_loads(self):
+        self.sip(0, 400, 300)
+        saved = self.log.as_dict()
+        del saved["rises"]
+        other = SipLog(LOCAL)
+        other.load(saved)
+        self.assertEqual(other.rises, [])
+        self.assertEqual(other.level().share, 0.5)
+
+    def test_prune_drops_old_rises(self):
+        self.sip(0, 200, 400)
+        self.log.prune(self.at + timedelta(days=91))
+        self.assertEqual(self.log.rises, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

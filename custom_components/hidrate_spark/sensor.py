@@ -17,6 +17,7 @@ from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfVolume
 
 from .coordinator import HidrateCoordinator
 from .entity import HidrateEntity
+from .sip_log import Refill
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -27,6 +28,34 @@ class HidrateSensorDescription(SensorEntityDescription):
 
 def _progress(c: HidrateCoordinator) -> int | None:
     return round(c.total_today() / c.goal_ml * 100) if c.goal_ml else None
+
+
+def _water_left(c: HidrateCoordinator) -> int | None:
+    level = c.log.level()
+    return round(level.share * c.size_ml) if level else None
+
+
+def _water_left_attrs(c: HidrateCoordinator) -> dict[str, Any]:
+    level = c.log.level()
+    return {
+        "percent": round(level.share * 100) if level else None,
+        # Only a record moves this, so a refill since then won't show until the next sip.
+        "as_of": level.at.isoformat() if level else None,
+    }
+
+
+def _last_refill(c: HidrateCoordinator) -> Refill | None:
+    refills = c.log.refills()
+    return refills[-1] if refills else None
+
+
+def _last_refill_attrs(c: HidrateCoordinator) -> dict[str, Any]:
+    refill = _last_refill(c)
+    return {
+        "amount_ml": round(refill.share * c.size_ml) if refill else None,
+        # False means it was noticed at the next sip, so the refill happened by this time.
+        "exact_time": refill.exact if refill else None,
+    }
 
 
 SENSORS = (
@@ -66,6 +95,25 @@ SENSORS = (
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda c: c.log.last.at if c.log.last else None,
         attrs_fn=lambda c: {"amount_ml": round(c.log.last.ml) if c.log.last else None},
+    ),
+    HidrateSensorDescription(
+        key="water_left",
+        name="Water left",
+        icon="mdi:cup",
+        device_class=SensorDeviceClass.VOLUME_STORAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfVolume.MILLILITERS,
+        suggested_display_precision=0,
+        value_fn=_water_left,
+        attrs_fn=_water_left_attrs,
+    ),
+    HidrateSensorDescription(
+        key="last_refill",
+        name="Last refill",
+        icon="mdi:water-plus",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda c: refill.at if (refill := _last_refill(c)) else None,
+        attrs_fn=_last_refill_attrs,
     ),
     HidrateSensorDescription(
         key="battery",
