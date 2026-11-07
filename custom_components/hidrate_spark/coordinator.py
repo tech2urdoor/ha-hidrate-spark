@@ -203,6 +203,13 @@ class HidrateCoordinator:
         return time.monotonic() - self._last_attempt >= wait
 
     @callback
+    def async_set_option(self, key: str, value: Any) -> None:
+        """Change one setting. The entry's update listener then calls async_options_changed."""
+        self.hass.config_entries.async_update_entry(
+            self.entry, options={**self.entry.options, key: value}
+        )
+
+    @callback
     def async_options_changed(self) -> None:
         """Changed settings go to the bottle the next time it's heard."""
         self._last_attempt = None

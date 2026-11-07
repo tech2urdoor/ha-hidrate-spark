@@ -31,6 +31,10 @@ DEFAULTS = {
     CONF_GLOW_ON_GOAL: True,
 }
 
+# Lowest, highest and step, shared by the Configure screen and the number entities.
+GOAL_RANGE = (100, 10000, 50)
+FREQUENCY_RANGE = (0, 720, 5)
+
 RETRY_SECONDS = 300
 SESSION_TIMEOUT_SECONDS = 240
 # How often to look for a due sync, and how recently the bottle must have been heard to count as in

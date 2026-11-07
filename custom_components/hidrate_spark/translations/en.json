@@ -35,6 +35,19 @@
       }
     }
   },
+  "entity": {
+    "select": {
+      "glow_light": {
+        "state": {
+          "high": "High glow",
+          "medium": "Medium glow",
+          "low": "Low glow",
+          "pulse": "Short pulse",
+          "pulse_white": "Short white pulse"
+        }
+      }
+    }
+  },
   "selector": {
     "glow_light": {
       "options": {

@@ -36,6 +36,8 @@ from .const import (
     CONF_WAKE,
     DEFAULTS,
     DOMAIN,
+    FREQUENCY_RANGE,
+    GOAL_RANGE,
 )
 from .protocol import LIGHTS, SERVICE
 
@@ -112,10 +114,10 @@ class HidrateOptionsFlow(OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_MANAGE_REMINDERS, default=default(CONF_MANAGE_REMINDERS)): BooleanSelector(),
-                    vol.Required(CONF_GOAL_ML, default=default(CONF_GOAL_ML)): _number(100, 10000, 50, "mL"),
+                    vol.Required(CONF_GOAL_ML, default=default(CONF_GOAL_ML)): _number(*GOAL_RANGE, "mL"),
                     vol.Required(CONF_WAKE, default=default(CONF_WAKE)): TimeSelector(),
                     vol.Required(CONF_SLEEP, default=default(CONF_SLEEP)): TimeSelector(),
-                    vol.Required(CONF_FREQUENCY_MIN, default=default(CONF_FREQUENCY_MIN)): _number(0, 720, 5, "min"),
+                    vol.Required(CONF_FREQUENCY_MIN, default=default(CONF_FREQUENCY_MIN)): _number(*FREQUENCY_RANGE, "min"),
                     vol.Required(CONF_LIGHT, default=default(CONF_LIGHT)): SelectSelector(
                         SelectSelectorConfig(
                             options=list(LIGHTS),

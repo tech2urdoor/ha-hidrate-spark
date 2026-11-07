@@ -24,7 +24,7 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Sips | `Last sip` sensor with the amount. Every sip is kept in Home Assistant for 90 days |
 | Daily totals | `Today` and `Yesterday` sensors. Totals are kept for good, and `Today` carries the last 14 days in its `daily_totals` attribute |
 | Daily goal | `Goal progress` sensor |
-| Glow reminders | Optional, and off until you turn them on. The schedule is built from your goal, wake time, bedtime and frequency |
+| Glow reminders | Optional, and off until you turn them on. The schedule is built from your goal, wake time, bedtime and frequency, which you can change from the device page or an automation |
 | Battery | `Battery` sensor |
 | Find my bottle | `Find` button |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
@@ -93,14 +93,19 @@ restart.
 
 ## Options
 
+These are on the integration's **Configure** screen. The ones marked *Control* are also entities in
+the device page's Configuration section, so a dashboard or automation can change them. Both are the
+same setting, and a change goes to the bottle at the next connection, about a minute later if it's
+in range. While reminders are off, changing the others sends nothing to the bottle.
+
 | Option | Default | |
 |---|---|---|
-| Send glow reminders to the bottle | Off | Off means the bottle is only read. Turning it on replaces the bottle's schedule |
-| Daily goal | 2000 mL | |
-| Wake time, Bedtime | 07:00, 22:00 | Reminders are spaced between these |
-| Minutes between reminders | 60 | 0 for none. The bottle holds 12 at most, counted from wake time, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
-| Glow | High | High, medium, low, short pulse, short white pulse |
-| Glow at every reminder | Off | Otherwise only when you're behind |
+| Send glow reminders to the bottle | Off | *Control.* Off means the bottle is only read. Turning it on replaces the bottle's schedule |
+| Daily goal | 2000 mL | *Control* |
+| Wake time, Bedtime | 07:00, 22:00 | *Control.* Reminders are spaced between these |
+| Minutes between reminders | 60 | *Control.* 0 for none. The bottle holds 12 at most, counted from wake time, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
+| Glow | High | *Control.* High, medium, low, short pulse, short white pulse |
+| Glow at every reminder | Off | *Control.* Otherwise only when you're behind |
 | Glow on each sip | On | |
 | Glow when the goal is reached | On | |
 | Bottle size | 621 mL | |
