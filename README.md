@@ -118,7 +118,8 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Firmware below 40 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
 
-The glow colour has no column yet, because no colour has been watched after being set from here.
+The glow colour has been watched on the Steel above for Blue and Rainbow only. The other six are
+untested. A change can fail with "Not connected", which leaves the colour as it was, so try it again.
 
 The bottle is called a Steel because of how the app treats its firmware number. Reminders on it
 can't be checked by reading them back, so the proof was watching it glow on time, with nothing
