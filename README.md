@@ -135,7 +135,7 @@ sending its own record of a refill hasn't been seen.
 
 The weight value has been measured on that Steel with one set of pours. 160 mL out and back moved it and returned it
 to within 2 units, and it stayed in proportion from full to empty. The line on the bottle held about 650 mL by
-measuring cup, so set `Bottle size` to what yours really holds. `Mark empty` and `Mark full` have been pressed on it,
+measuring cup, against the 621 mL the bottle stores as its size. It's left at 621, so amounts read a little low. `Mark empty` and `Mark full` have been pressed on it,
 and `Water left` then read 100% with the bottle full. A level is only as fresh as the last sync. Nothing has yet
 checked it with the bottle tilted or over days, and no other bottle has been tried.
 
