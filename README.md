@@ -8,8 +8,8 @@ cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer
 > [!WARNING]
 > **Status: early, and proven on one bottle only.** On a Steel with firmware 53.63, installed through
 > HACS, it connects through a Bluetooth proxy with no pairing, syncs by itself while the bottle stays
-> in range, and has read a real sip with the right time and a plausible amount. Glow reminders, Find
-> and calibration haven't been shown to work on any bottle.
+> in range, has read a real sip with the right time and a plausible amount, and makes the bottle glow
+> with Find. Glow reminders and calibration haven't been shown to work on any bottle.
 > No other bottle has been tried. Read
 > [what it writes to your bottle](docs/what-it-writes.md) before you install it.
 
@@ -110,7 +110,7 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
-| Steel, 621 mL | 53.63 | Works | Works, one real sip so far | Untested | Reads a value, accuracy unchecked | Untested | Untested |
+| Steel, 621 mL | 53.63 | Works | Works, one real sip so far | Untested | Reads a value, accuracy unchecked | Works | Untested |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Firmware below 40 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |

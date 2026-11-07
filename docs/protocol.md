@@ -111,6 +111,7 @@ amount = (fraction(start) - fraction(stop)) * bottle size
 
 - If the sensor range is flat, the amount is zero.
 - A negative amount means the level rose, which is a refill, and it isn't counted as a sip.
+  *Seen:* on 53.63 a refill added no sip in the syncs after it.
 - A record with zero amount, bytes 2–3 zero and seconds zero is empty: the bottle has nothing to
   hand over.
 - This integration ignores a repeat with identical levels within two minutes of one it already
@@ -133,7 +134,7 @@ sends. See [what-it-writes.md](what-it-writes.md) for when and why.
 | SCHEDULE | `93 3d` / `92` | Glow when the goal is reached: on, with its strobe value / off |
 | SCHEDULE | `77 00 00 00` + u32 little-endian | Seconds since midnight |
 | SCHEDULE | 8-byte row, below | One row of the schedule |
-| GLOW_NOW | one glow byte, below | Glow now |
+| GLOW_NOW | one glow byte, below | Glow now. *Seen:* works on 53.63 |
 
 ### Schedule rows
 
@@ -170,8 +171,8 @@ Reports on any of these are very welcome.
 - How many sips a bottle holds while it's away from home.
 - Whether sips are one-shot on firmware other than 53.63.
 - Whether the reminder writes work once nothing is connected. None of this has been seen yet.
-- Why the bottle glows blue on a refill. Nothing in the app seems to ask for it, so it looks like the
-  bottle's own firmware.
+- What makes the bottle glow blue on a refill. *Seen:* on 53.63 it did so with nothing connected, so
+  it's the bottle's own firmware and nothing has to ask for it.
 - How the second advertised identity relates to the first.
 - Which firmware versions each model ships with, and whether the major-version families above hold.
 - What the probe's SETTINGS, COMMANDS and RUNNING_TOTAL reads mean, byte by byte, beyond the size above.
