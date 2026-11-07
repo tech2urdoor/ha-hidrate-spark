@@ -15,6 +15,7 @@ from .protocol import (
     FIRMWARE_REVISION,
     HARDWARE_REVISION,
     RUNNING_TOTAL,
+    WEIGHT,
     SCHEDULE,
     SERIAL_NUMBER,
     SETTINGS,
@@ -44,6 +45,7 @@ PROBE_READS = {
     "commands": COMMANDS,
     "schedule": SCHEDULE,
     "running_total": RUNNING_TOTAL,
+    "weight": WEIGHT,
 }
 
 

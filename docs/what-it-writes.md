@@ -73,5 +73,5 @@ These three are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration w
 **No firmware updates, ever.** This integration has no firmware to offer and no code to send one.
 If your bottle needs an update, that's a job for the official app.
 
-The probe does read SETTINGS, CAPACITY and RUNNING_TOTAL, because reading is safe and shows how a
+The probe does read SETTINGS, CAPACITY, RUNNING_TOTAL and WEIGHT, because reading is safe and shows how a
 bottle differs. It does not touch FIRMWARE_UPDATE at all.

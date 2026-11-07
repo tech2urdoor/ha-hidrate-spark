@@ -16,7 +16,10 @@ The names in capitals are this project's own labels, or Bluetooth's standard nam
 
 Earlier public work that covers parts of this:
 [agua_amiga](https://github.com/mpnordland/agua_amiga) and
-[wban-python](https://github.com/choonkiatlee/wban-python).
+[wban-python](https://github.com/choonkiatlee/wban-python). Loryan Strant's
+[HidrateSpark-MQTT-bridge](https://github.com/loryanstrant/HidrateSpark-MQTT-bridge) and
+[Home Assistant integration](https://github.com/loryanstrant/HA-HidrateSpark-Bluetooth-Proxy) document
+the weight characteristic on firmware 80.18. No code from any of them is used here.
 
 ## Finding the bottle
 
@@ -49,6 +52,7 @@ Earlier public work that covers parts of this:
 | SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL | Reads in the probe. Writes only when you change the glow colour |
 | CAPACITY | `316c4914-1f59-462e-af06-185418674c0c` | Size. *Seen:* absent on 53.63 | Reads in the probe, **never writes** |
 | RUNNING_TOTAL | `6ac24e8b-056c-4077-8221-8f816ade71e6` | Running total | Reads in the probe, **never writes** |
+| WEIGHT | `1807a063-4e2d-4636-981a-35e93d1c7b94` | A live weight reading, according to the notes linked above. *Seen:* present on 53.63, with read and notify. What it returns there isn't known yet | Reads in the probe |
 | FIRMWARE_UPDATE | `00060001-f8ce-11e4-abf4-0002a5d5c51b` | Firmware updates | **Never touches** |
 
 ## Firmware decides the details
