@@ -22,6 +22,7 @@ from .protocol import (
     Firmware,
     GlowSettings,
     Packet,
+    colour_settings,
     history_command,
     is_empty,
     parse_packet,
@@ -54,6 +55,10 @@ _SHORTEST_PRIVATE = 4
 
 class UnsupportedBottle(Exception):
     """This firmware works differently, so no sips were taken."""
+
+
+class ColourNotSet(Exception):
+    """The colour was refused before writing, or didn't read back as written."""
 
 
 @dataclass
@@ -155,6 +160,24 @@ async def sync(
         for uuid, payload in reminder_writes(glow, firmware, size_ml, total_today(), now_seconds()):
             await client.write_gatt_char(uuid, payload)
     return SyncResult(firmware, serial, battery, packets)
+
+
+async def set_colour(client: Any, colour: str) -> None:
+    """The only write to SETTINGS. It runs only when asked for, never during a sync, and takes no sips."""
+    firmware = await read_firmware(client)
+    if not firmware.can_set_colour:
+        raise ColourNotSet(f"Changing the colour hasn't been tried on firmware {firmware.raw}")
+    current = bytes(await client.read_gatt_char(SETTINGS))
+    try:
+        wanted = colour_settings(current, colour)
+    except ValueError as err:
+        raise ColourNotSet(str(err)) from err
+    if current == wanted:
+        return
+    await client.write_gatt_char(SETTINGS, wanted)
+    after = bytes(await client.read_gatt_char(SETTINGS))
+    if after != wanted:
+        raise ColourNotSet(f"The bottle read back {after.hex()} after writing {wanted.hex()}")
 
 
 def private_values(*texts: str | None, address: str | None = None) -> set[str]:

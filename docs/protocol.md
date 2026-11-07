@@ -65,7 +65,7 @@ hardware family.
 | 111 and up | Unknown | Refuses before reading a sip |
 
 The app treats a Steel differently only when reading and writing SETTINGS, which this integration
-never writes, so the reminder bytes are the same.
+writes only to change the glow colour, so the reminder bytes are the same.
 
 The refusal is deliberate. Sips are one-shot, so decoding them on a guess could lose them.
 
@@ -157,6 +157,24 @@ Twelve rows, always. Rows past the last reminder are blank.
 The percentage for row `n` of `count` is
 `goal * (n + 1) / (count + 1) / bottle size * 100`, and the time is
 `wake + (n + 1) * interval`, wrapping past midnight.
+
+### Glow colours
+
+*Seen:* on 53.63 SETTINGS is six bytes: the bottle's size, then colour A and colour B, each a
+little-endian u16 in RGB565. A bottle that had never had a colour set read `6d02 0000 0000`. A colour
+A of `0x0001` is a special value meaning rainbow. Only Rainbow and Blue have been seen written to a
+bottle. The others are untested.
+
+| Colour | A | B |
+|---|---|---|
+| Rainbow | `0x0001` | `0x03BF` |
+| Blue | `0x077F` | `0x03BF` |
+| Red | `0xFC08` | `0xF800` |
+| Gold | `0xFE20` | `0xFFA0` |
+| Lime | `0xB7EB` | `0x2F8E` |
+| Aqua | `0x07FF` | `0x07E1` |
+| Purple | `0x841F` | `0xA81F` |
+| White | `0xCE9B` | `0xFFFF` |
 
 ### Glow bytes
 

@@ -28,6 +28,7 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Battery | `Battery` sensor |
 | Find my bottle | `Find` button |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
+| Glow colour | `Glow colour` select with eight colours, disabled by default. Firmware 50 to 59 only. [It changes the bottle's own settings, at your own risk](docs/what-it-writes.md#only-when-you-change-the-glow-colour) |
 
 There's also a `Sync now` button and a `Last sync` sensor, whose `last_error` attribute tells you
 what went wrong if a sync failed.
@@ -37,6 +38,7 @@ what went wrong if a sync failed.
 - **App history.** Nothing already in your Hidrate account comes across. Your record starts with
   what's on the bottle when you first connect.
 - **Snooze.** There's no way to snooze a reminder.
+- **Free-choice glow colours.** Only the eight named colours are offered.
 - **Health Connect.** Sips aren't written to Health Connect or Apple Health. They live in Home
   Assistant, and you can feed them onward from there.
 - **Firmware updates.** This integration will [never do these](docs/what-it-writes.md#what-it-never-writes).
@@ -115,6 +117,8 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Firmware below 40 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
+
+The glow colour has no column yet, because no colour has been watched after being set from here.
 
 The bottle is called a Steel because of how the app treats its firmware number. Reminders on it
 can't be checked by reading them back, so the proof was watching it glow on time, with nothing

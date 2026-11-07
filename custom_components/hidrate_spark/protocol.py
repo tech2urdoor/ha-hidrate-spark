@@ -24,12 +24,25 @@ GLOW_NOW = "a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0"
 RUNNING_TOTAL = "6ac24e8b-056c-4077-8221-8f816ade71e6"
 FIRMWARE_UPDATE = "00060001-f8ce-11e4-abf4-0002a5d5c51b"
 
-# Writing to these can clear the bottle's total, change its colour and size, or start a firmware
-# update. Nothing in this integration writes to them, and a test holds it to that.
-NEVER_WRITE = frozenset({SETTINGS, CAPACITY, RUNNING_TOTAL, FIRMWARE_UPDATE})
+# Writing to these can clear the bottle's total, change its size, or start a firmware update.
+# Nothing in this integration writes to them, and a test holds it to that.
+NEVER_WRITE = frozenset({CAPACITY, RUNNING_TOTAL, FIRMWARE_UPDATE})
 
 LIGHTS = {"high": 0xB4, "medium": 0xB0, "low": 0xAC, "pulse": 0x00, "pulse_white": 0x01}
 GOAL_STROBE = 61
+
+# The two RGB565 values SETTINGS holds after the bottle's size. Colour A 0x0001 is a special value.
+GLOW_COLOURS = {
+    "Rainbow": (0x0001, 0x03BF),
+    "Blue": (0x077F, 0x03BF),
+    "Red": (0xFC08, 0xF800),
+    "Gold": (0xFE20, 0xFFA0),
+    "Lime": (0xB7EB, 0x2F8E),
+    "Aqua": (0x07FF, 0x07E1),
+    "Purple": (0x841F, 0xA81F),
+    "White": (0xCE9B, 0xFFFF),
+}
+SETTINGS_LENGTH = 6
 
 SECONDS_IN_DAY = 86400
 SCHEDULE_SLOTS = 12
@@ -68,6 +81,19 @@ class Firmware:
         anything else is refused before the first sip rather than decoded on a guess.
         """
         return 40 <= self.major < 100
+
+    @property
+    def can_set_colour(self) -> bool:
+        """The only family whose SETTINGS layout has been seen. Others may hold something else there."""
+        return 50 <= self.major < 60
+
+
+def colour_settings(current: bytes, colour: str) -> bytes:
+    """SETTINGS with only the colours replaced. Refuses a layout it doesn't recognise."""
+    current = bytes(current)
+    if len(current) != SETTINGS_LENGTH:
+        raise ValueError(f"SETTINGS is {len(current)} bytes, expected {SETTINGS_LENGTH}")
+    return current[:2] + struct.pack("<HH", *GLOW_COLOURS[colour])
 
 
 def history_command(firmware: Firmware) -> int:

@@ -21,8 +21,8 @@ nothing. Each sip is saved in Home Assistant the moment it arrives.
 ## Every sync, only if you turn on "Send glow reminders to the bottle"
 
 Reminders are off until you turn them on, because these writes replace whatever the bottle held,
-including the schedule the app last gave it. **They haven't been shown to work yet.** The bottle
-tested reads its schedule back as zeros, so the only proof is watching it glow. They go in this order:
+including the schedule the app last gave it. The bottle tested reads its schedule back as zeros, so
+the only proof is watching it glow, which has been seen on one bottle. They go in this order:
 
 | Where | What | Why |
 |---|---|---|
@@ -44,17 +44,28 @@ tested reads its schedule back as zeros, so the only proof is watching it glow. 
 Both calibrate buttons are disabled by default, because a stray press would throw off every sip
 until you calibrate again. Turn them on from the entity's settings when you need them.
 
+## Only when you change the glow colour
+
+| Control | Where | What |
+|---|---|---|
+| Glow colour | SETTINGS | The bottle's six setting bytes, with the last four replaced by the two colour values |
+
+**This changes the bottle's own settings, at your own risk.** It comes with no warranty, like the
+rest of this project. It's disabled by default, and a sync never reads or writes SETTINGS. It reads
+the bytes first and refuses unless there are exactly six, keeps the first two as they were, then
+reads them back to check. It only runs on firmware 50 to 59, the one family whose layout has been
+seen.
+
 ## The probe
 
 `hidrate_spark.probe` writes nothing and takes no sips. It only reads.
 
 ## What it never writes
 
-These four are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.
+These three are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.
 
 | Characteristic | Why not |
 |---|---|
-| SETTINGS | The bottle's own settings. A write could change its colour or how it behaves |
 | CAPACITY | The size the bottle believes it is. Size is an option on the Home Assistant side instead |
 | RUNNING_TOTAL | The bottle's own running total. A write could clear it |
 | FIRMWARE_UPDATE | The way into a firmware update |

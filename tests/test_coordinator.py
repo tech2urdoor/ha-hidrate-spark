@@ -123,6 +123,30 @@ class AdvertTest(Base):
         self.assertEqual(self.syncs_started, 1)
 
 
+class ColourTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.coordinator._store.async_save = mock.AsyncMock()
+
+    def set_colour(self, side_effect=None):
+        with mock.patch.object(module.session, "set_colour", mock.AsyncMock(side_effect=side_effect)):
+            with mock.patch.object(self.coordinator, "_session", side_effect=lambda work: work(None)):
+                asyncio.run(self.coordinator.async_set_colour("Blue"))
+
+    def test_remembered_once_it_has_read_back(self):
+        self.set_colour()
+        self.assertEqual(self.coordinator.colour, "Blue")
+        self.assertEqual(self.coordinator._as_dict()["colour"], "Blue")
+        self.coordinator._store.async_save.assert_awaited_once()
+
+    def test_a_failed_write_shows_as_unknown_and_tells_the_user(self):
+        self.coordinator.colour = "Rainbow"
+        with self.assertRaises(module.HomeAssistantError):
+            self.set_colour(module.session.ColourNotSet("no"))
+        self.assertIsNone(self.coordinator.colour)
+        self.coordinator._store.async_save.assert_awaited_once()
+
+
 class StartTest(Base):
     def test_the_check_is_scheduled_and_every_listener_is_cancelled(self):
         cancels = [mock.Mock(), mock.Mock(), mock.Mock()]

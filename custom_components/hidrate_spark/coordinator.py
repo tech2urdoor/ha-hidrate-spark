@@ -63,6 +63,7 @@ class HidrateCoordinator:
         self.battery: int | None = None
         self.firmware: str | None = None
         self.serial: str | None = None
+        self.colour: str | None = None
         self.last_sync: datetime | None = None
         self.last_error: str | None = None
         self._store: Store[dict[str, Any]] = Store(
@@ -127,6 +128,7 @@ class HidrateCoordinator:
         self.battery = data.get("battery")
         self.firmware = data.get("firmware")
         self.serial = data.get("serial")
+        self.colour = data.get("colour")
         if stamp := data.get("last_sync"):
             self.last_sync = datetime.fromisoformat(stamp)
 
@@ -136,6 +138,7 @@ class HidrateCoordinator:
             "battery": self.battery,
             "firmware": self.firmware,
             "serial": self.serial,
+            "colour": self.colour,
             "last_sync": self.last_sync.isoformat() if self.last_sync else None,
         }
 
@@ -309,6 +312,19 @@ class HidrateCoordinator:
                 protocol.GLOW_NOW, protocol.find_command(self.light)
             )
         )
+
+    async def async_set_colour(self, colour: str) -> None:
+        """Remembers the colour only once it has read back, so a failure shows as unknown."""
+        self.colour = None
+        try:
+            await self._async_action(lambda client: session.set_colour(client, colour))
+        except session.ColourNotSet as err:
+            raise HomeAssistantError(str(err)) from err
+        else:
+            self.colour = colour
+        finally:
+            await self._store.async_save(self._as_dict())
+            self._notify()
 
     async def async_calibrate_empty(self) -> None:
         async def work(client: Any) -> None:
