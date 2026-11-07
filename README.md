@@ -104,7 +104,7 @@ in range. While reminders are off, changing the others sends nothing to the bott
 | Daily goal | 2000 mL | *Control* |
 | Wake time, Bedtime | 07:00, 22:00 | *Control.* Reminders are spaced between these |
 | Minutes between reminders | 60 | *Control.* 0 for none. The bottle holds 12 at most, counted from wake time, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
-| Glow | High | *Control.* High, medium, low, short pulse, short white pulse |
+| Glow | High | *Control.* High, medium, low, short pulse, short white pulse, pulse effect, spin effect, flash effect. Used for reminders and Find. The three effects are untested |
 | Glow at every reminder | Off | *Control.* Otherwise only when you're behind |
 | Glow on each sip | On | |
 | Glow when the goal is reached | On | |
@@ -125,6 +125,9 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 
 All eight glow colours have been tried on the Steel above and work. A change can fail with
 "Not connected", which leaves the colour as it was, so try it again.
+
+A change to a control on the device page has been seen reaching the bottle's next sync, about a
+minute later and with no error.
 
 The bottle is called a Steel because of how the app treats its firmware number. Reminders on it
 can't be checked by reading them back, so the proof was watching it glow on time, with nothing

@@ -185,6 +185,11 @@ watched, and they work.
 | Low | `ac` |
 | Short pulse | `00` |
 | Short white pulse | `01` |
+| Pulse effect | `2c` |
+| Spin effect | `30` |
+| Flash effect | `34` |
+
+The three effects haven't been watched on a bottle yet.
 
 ## Still unknown
 

@@ -28,7 +28,16 @@ FIRMWARE_UPDATE = "00060001-f8ce-11e4-abf4-0002a5d5c51b"
 # Nothing in this integration writes to them, and a test holds it to that.
 NEVER_WRITE = frozenset({CAPACITY, RUNNING_TOTAL, FIRMWARE_UPDATE})
 
-LIGHTS = {"high": 0xB4, "medium": 0xB0, "low": 0xAC, "pulse": 0x00, "pulse_white": 0x01}
+LIGHTS = {
+    "high": 0xB4,
+    "medium": 0xB0,
+    "low": 0xAC,
+    "pulse": 0x00,
+    "pulse_white": 0x01,
+    "effect_pulse": 0x2C,
+    "effect_spin": 0x30,
+    "effect_flash": 0x34,
+}
 GOAL_STROBE = 61
 
 # The two RGB565 values SETTINGS holds after the bottle's size. Colour A 0x0001 is a special value.

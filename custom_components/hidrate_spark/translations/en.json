@@ -43,7 +43,10 @@
           "medium": "Medium glow",
           "low": "Low glow",
           "pulse": "Short pulse",
-          "pulse_white": "Short white pulse"
+          "pulse_white": "Short white pulse",
+          "effect_pulse": "Pulse effect",
+          "effect_spin": "Spin effect",
+          "effect_flash": "Flash effect"
         }
       }
     }
@@ -55,7 +58,10 @@
         "medium": "Medium glow",
         "low": "Low glow",
         "pulse": "Short pulse",
-        "pulse_white": "Short white pulse"
+        "pulse_white": "Short white pulse",
+        "effect_pulse": "Pulse effect",
+        "effect_spin": "Spin effect",
+        "effect_flash": "Flash effect"
       }
     }
   },
