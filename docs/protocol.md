@@ -189,7 +189,9 @@ watched, and they work.
 | Spin effect | `30` |
 | Flash effect | `34` |
 
-The three effects haven't been watched on a bottle yet.
+*Seen:* on 53.63 the pulse and spin effects work through GLOW_NOW, and one write plays more than once
+by itself. They use the bottle's glow colour. The flash effect hasn't been watched, and nor has an effect
+in a schedule row.
 
 ## Still unknown
 
