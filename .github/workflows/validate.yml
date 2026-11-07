@@ -44,3 +44,19 @@ jobs:
         run: python -m compileall -q custom_components tests
       - name: Tests
         run: python tests/test_hidrate_spark.py
+
+  imports:
+    name: Loads in Home Assistant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install Home Assistant and what its bluetooth integration needs
+        run: |
+          pip install homeassistant
+          python tests/check_imports.py --requirements > "$RUNNER_TEMP/requirements.txt"
+          pip install -r "$RUNNER_TEMP/requirements.txt"
+      - name: Every module imports
+        run: python tests/check_imports.py
