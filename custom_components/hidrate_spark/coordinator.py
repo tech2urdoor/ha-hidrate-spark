@@ -365,7 +365,7 @@ class HidrateCoordinator:
             )
         )
 
-    async def async_probe(self) -> dict[str, Any]:
+    async def async_probe(self, weight_seconds: float = 0) -> dict[str, Any]:
         """A read-only look at the bottle, safe to paste in public. Takes no sips and writes nothing."""
         info = bluetooth.async_last_service_info(self.hass, self.address, connectable=True)
         texts = [self.serial]
@@ -375,7 +375,7 @@ class HidrateCoordinator:
             texts += [info.name, info.source, scanner.name.partition(" (")[0] if scanner else None]
         private = session.private_values(*texts, address=self.address)
         try:
-            report = await self._async_action(lambda client: session.probe(client, private))
+            report = await self._async_action(lambda client: session.probe(client, private, weight_seconds))
         except HomeAssistantError as err:
             raise HomeAssistantError(session.redact_text(str(err), private)) from None
         if info is not None:

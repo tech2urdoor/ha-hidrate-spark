@@ -22,6 +22,7 @@ PLATFORMS = [
 ]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 ATTR_BOTTLE = "bottle"
+ATTR_WEIGHT_SECONDS = "weight_seconds"
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
@@ -35,13 +36,20 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
                 raise HomeAssistantError("That bottle isn't set up")
         elif len(entries) > 1:
             raise HomeAssistantError("More than one bottle is set up, so choose which to probe")
-        return await entries[0].runtime_data.async_probe()
+        return await entries[0].runtime_data.async_probe(call.data.get(ATTR_WEIGHT_SECONDS, 0))
 
     hass.services.async_register(
         DOMAIN,
         "probe",
         _probe,
-        schema=vol.Schema({vol.Optional(ATTR_BOTTLE): cv.string}),
+        schema=vol.Schema(
+            {
+                vol.Optional(ATTR_BOTTLE): cv.string,
+                vol.Optional(ATTR_WEIGHT_SECONDS, default=0): vol.All(
+                    vol.Coerce(int), vol.Range(min=0, max=120)
+                ),
+            }
+        ),
         supports_response=SupportsResponse.ONLY,
     )
     return True

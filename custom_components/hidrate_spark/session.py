@@ -218,7 +218,26 @@ def mask_name(name: str | None) -> str | None:
     return f"{name[:3]}****" if name else None
 
 
-async def probe(client: Any, private: Collection[str] = ()) -> dict[str, Any]:
+async def _listen_to_weight(client: Any, seconds: float) -> dict[str, Any]:
+    """Weight readings arrive as notifications, and they're what shows whether a level can be read."""
+    heard: list[list[Any]] = []
+    started = time.monotonic()
+
+    def on_weight(_sender: Any, data: bytearray) -> None:
+        heard.append([round(time.monotonic() - started, 1), bytes(data).hex()])
+
+    try:
+        await client.start_notify(WEIGHT, on_weight)
+        await asyncio.sleep(seconds)
+        await client.stop_notify(WEIGHT)
+    except Exception as err:  # noqa: BLE001 - the same as an unreadable characteristic
+        return {"error": str(err), "heard": heard}
+    return {"seconds": seconds, "heard": heard}
+
+
+async def probe(
+    client: Any, private: Collection[str] = (), weight_seconds: float = 0
+) -> dict[str, Any]:
     """Everything that can be learned without taking a sip or writing anything.
 
     The report is made to be pasted into a public issue. The serial is left out, and it, the
@@ -241,6 +260,8 @@ async def probe(client: Any, private: Collection[str] = ()) -> dict[str, Any]:
         if raw and all(32 <= byte < 127 or byte == 0 for byte in raw):
             entry["text"] = raw.split(b"\0", 1)[0].decode("ascii")
         report[name] = entry
+    if weight_seconds > 0:
+        report["weight_notifications"] = await _listen_to_weight(client, weight_seconds)
     report["gatt"] = {
         service.uuid: [
             f"{char.uuid} {','.join(char.properties)}" for char in service.characteristics

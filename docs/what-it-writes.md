@@ -58,7 +58,7 @@ seen.
 
 ## The probe
 
-`hidrate_spark.probe` writes nothing and takes no sips. It only reads.
+`hidrate_spark.probe` writes nothing and takes no sips. It only reads. If you set `weight_seconds`, it also turns on WEIGHT notifications while it listens, which is a flag on the Bluetooth connection, and turns them off again.
 
 ## What it never writes
 

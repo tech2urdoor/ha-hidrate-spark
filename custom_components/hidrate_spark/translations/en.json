@@ -76,6 +76,10 @@
         "bottle": {
           "name": "Bottle",
           "description": "Which bottle to probe. Needed only if more than one is set up."
+        },
+        "weight_seconds": {
+          "name": "Listen to the weight for",
+          "description": "Seconds to listen for the bottle's weight readings. Leave at 0 to skip this. It turns notifications on while it listens, and still takes no sips."
         }
       }
     }

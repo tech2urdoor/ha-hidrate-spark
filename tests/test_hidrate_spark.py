@@ -351,6 +351,30 @@ class ProbeTest(unittest.TestCase):
         private = s.private_values(self.NAME, "kitchen-proxy", address=self.ADDRESS)
         return asyncio.run(s.probe(client, private))
 
+    def test_doesnt_listen_unless_asked(self):
+        client = FakeClient()
+        self.assertNotIn("weight_notifications", self.probe(client))
+        self.assertIsNone(client.callback)
+
+    def test_listening_reports_the_weight_and_stops(self):
+        client = FakeClient()
+        report = asyncio.run(s.probe(client, weight_seconds=0.01))
+        self.assertEqual(report["weight_notifications"], {"seconds": 0.01, "heard": []})
+        self.assertTrue(client.stopped)
+        self.assertEqual(client.writes, [])
+        self.assertNotIn(p.SIPS, client.read_log)
+
+    def test_a_failure_to_listen_doesnt_lose_the_report(self):
+        client = FakeClient()
+
+        async def refused(_uuid, _callback):
+            raise OSError("no notify")
+
+        client.start_notify = refused
+        report = asyncio.run(s.probe(client, weight_seconds=0.01))
+        self.assertEqual(report["weight_notifications"]["error"], "no notify")
+        self.assertEqual(report["firmware"]["text"], "85.3")
+
     def test_reads_only_the_safe_list_and_reports_failures(self):
         client = FakeClient()
         report = self.probe(client)

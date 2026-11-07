@@ -5,3 +5,11 @@ probe:
       selector:
         config_entry:
           integration: hidrate_spark
+    weight_seconds:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 120
+          unit_of_measurement: s
