@@ -60,3 +60,5 @@ jobs:
           pip install -r "$RUNNER_TEMP/requirements.txt"
       - name: Every module imports
         run: python tests/check_imports.py
+      - name: Coordinator tests
+        run: python tests/test_coordinator.py

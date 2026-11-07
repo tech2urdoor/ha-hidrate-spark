@@ -33,3 +33,7 @@ DEFAULTS = {
 
 RETRY_SECONDS = 300
 SESSION_TIMEOUT_SECONDS = 240
+# How often to look for a due sync, and how recently the bottle must have been heard to count as in
+# range. The one bottle measured so far advertises about every 2 seconds, so 120 is plenty.
+DUE_CHECK_SECONDS = 60
+HEARD_WITHIN_SECONDS = 120

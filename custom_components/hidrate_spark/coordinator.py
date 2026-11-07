@@ -16,7 +16,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.event import async_track_time_change, async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -35,6 +35,8 @@ from .const import (
     CONF_WAKE,
     DEFAULTS,
     DOMAIN,
+    DUE_CHECK_SECONDS,
+    HEARD_WITHIN_SECONDS,
     RETRY_SECONDS,
     SESSION_TIMEOUT_SECONDS,
 )
@@ -145,12 +147,18 @@ class HidrateCoordinator:
             bluetooth.BluetoothCallbackMatcher(address=self.address, connectable=True),
             bluetooth.BluetoothScanningMode.PASSIVE,
         )
+        # Home Assistant drops an advert identical to the last one before any callback runs, and this
+        # bottle's never change, so the callback only fires at startup and when it comes back.
+        cancel_due_check = async_track_time_interval(
+            self.hass, self._on_due_check, timedelta(seconds=DUE_CHECK_SECONDS)
+        )
         cancel_midnight = async_track_time_change(
             self.hass, self._on_midnight, hour=0, minute=0, second=1
         )
 
         def _stop() -> None:
             cancel_advert()
+            cancel_due_check()
             cancel_midnight()
 
         return _stop
@@ -165,6 +173,18 @@ class HidrateCoordinator:
         _info: bluetooth.BluetoothServiceInfoBleak,
         _change: bluetooth.BluetoothChange,
     ) -> None:
+        self._sync_if_due()
+
+    @callback
+    def _on_due_check(self, _now: datetime) -> None:
+        # The last-heard time keeps moving even for adverts that never reach a callback. An entry
+        # outlives the bottle's departure by several minutes, so its being there isn't enough.
+        info = bluetooth.async_last_service_info(self.hass, self.address, connectable=True)
+        if info is not None and time.monotonic() - info.time < HEARD_WITHIN_SECONDS:
+            self._sync_if_due()
+
+    @callback
+    def _sync_if_due(self) -> None:
         if self._lock.locked() or not self._due():
             return
         # Set here as well as in async_sync, or an advert arriving before the task starts queues a second.
