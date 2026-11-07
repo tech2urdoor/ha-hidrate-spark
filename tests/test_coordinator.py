@@ -131,6 +131,81 @@ class AdvertTest(Base):
         self.assertEqual(self.syncs_started, 1)
 
 
+class SessionTest(Base):
+    def run_session(self, work, disconnect_error=None):
+        client = mock.Mock(disconnect=mock.AsyncMock(side_effect=disconnect_error))
+        with (
+            mock.patch.object(module.bluetooth, "async_ble_device_from_address"),
+            mock.patch.object(module, "establish_connection", mock.AsyncMock(return_value=client)),
+        ):
+            try:
+                return asyncio.run(self.coordinator._session(work))
+            finally:
+                client.disconnect.assert_awaited_once_with()
+
+    def test_a_failed_disconnect_keeps_the_result(self):
+        async def work(_client):
+            return "result"
+
+        self.assertEqual(self.run_session(work, module.BleakError("gone")), "result")
+
+    def test_a_failed_disconnect_keeps_the_real_error(self):
+        async def work(_client):
+            raise ValueError("the real problem")
+
+        with self.assertRaisesRegex(ValueError, "the real problem"):
+            self.run_session(work, module.BleakError("gone"))
+
+
+class UnsupportedTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.coordinator._store.async_save = mock.AsyncMock()
+
+    def sync_failing_with(self, err):
+        with mock.patch.object(self.coordinator, "_session", mock.AsyncMock(side_effect=err)):
+            asyncio.run(self.coordinator.async_sync())
+
+    def test_an_unsupported_bottle_waits_for_the_normal_interval(self):
+        self.sync_failing_with(module.session.UnsupportedBottle("no"))
+        self.assertEqual(self.coordinator.last_error, "no")
+        self.coordinator._last_attempt = time.monotonic() - RETRY_SECONDS - 1
+        self.assertFalse(self.coordinator._due())
+        self.coordinator._last_attempt = time.monotonic() - THIRTY_MINUTES - 1
+        self.assertTrue(self.coordinator._due())
+
+    def test_a_connection_failure_still_retries_sooner(self):
+        self.sync_failing_with(module.BleakError("no"))
+        self.coordinator._last_attempt = time.monotonic() - RETRY_SECONDS - 1
+        self.assertTrue(self.coordinator._due())
+
+
+class UnloadTest(Base):
+    def unload(self, unloaded):
+        hass = mock.Mock()
+        hass.config_entries.async_unload_platforms = mock.AsyncMock(return_value=unloaded)
+        self.entry.runtime_data = self.coordinator
+        return integration.async_unload_entry(hass, self.entry)
+
+    def test_waits_for_a_running_session(self):
+        async def run():
+            await self.coordinator._lock.acquire()
+            task = asyncio.create_task(self.unload(True))
+            await asyncio.sleep(0)
+            self.assertFalse(task.done())
+            self.coordinator._lock.release()
+            self.assertTrue(await task)
+
+        asyncio.run(run())
+
+    def test_a_failed_unload_doesnt_wait(self):
+        async def run():
+            async with self.coordinator._lock:
+                self.assertFalse(await self.unload(False))
+
+        asyncio.run(run())
+
+
 class ColourTest(Base):
     def setUp(self):
         super().setUp()

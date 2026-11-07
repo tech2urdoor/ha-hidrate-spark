@@ -62,4 +62,9 @@ async def _options_updated(_hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+    # A pressed button's session isn't one the unload cancels. Left running beside a reloaded
+    # coordinator, its save would overwrite sips the new one had read.
+    await entry.runtime_data.async_wait_until_idle()
+    return True

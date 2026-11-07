@@ -73,6 +73,7 @@ class HidrateCoordinator:
         self._listeners: list[CALLBACK_TYPE] = []
         self._last_attempt: float | None = None
         self._succeeded = False
+        self._unsupported = False
 
     def option(self, key: str) -> Any:
         return self.entry.options.get(key, DEFAULTS[key])
@@ -199,8 +200,15 @@ class HidrateCoordinator:
     def _due(self) -> bool:
         if self._last_attempt is None:
             return True
-        wait = int(self.option(CONF_SYNC_MINUTES)) * 60 if self._succeeded else RETRY_SECONDS
+        # Trying again won't change a bottle's firmware, and every try costs it battery.
+        settled = self._succeeded or self._unsupported
+        wait = int(self.option(CONF_SYNC_MINUTES)) * 60 if settled else RETRY_SECONDS
         return time.monotonic() - self._last_attempt >= wait
+
+    async def async_wait_until_idle(self) -> None:
+        """Lets a running session finish, so its sips are saved before the store can be loaded again."""
+        async with self._lock:
+            pass
 
     @callback
     def async_set_option(self, key: str, value: Any) -> None:
@@ -237,7 +245,11 @@ class HidrateCoordinator:
             try:
                 return await work(client)
             finally:
-                await client.disconnect()
+                try:
+                    await client.disconnect()
+                except CONNECTION_ERRORS as err:
+                    # The work has finished by now, and this mustn't replace its result or its error.
+                    _LOGGER.debug("Couldn't disconnect cleanly: %s", err)
 
     async def async_sync(self) -> None:
         """Connect, take the sips, write the reminders. Errors are recorded, never raised."""
@@ -268,9 +280,13 @@ class HidrateCoordinator:
 
             try:
                 result = await self._session(work)
-            except (*CONNECTION_ERRORS, ValueError, session.UnsupportedBottle) as err:
+            except session.UnsupportedBottle as err:
+                self._unsupported = True
+                self._record_failure(err)
+            except (*CONNECTION_ERRORS, ValueError) as err:
                 self._record_failure(err)
             else:
+                self._unsupported = False
                 self.firmware = result.firmware.raw
                 self.serial = result.serial
                 if result.battery is not None:
