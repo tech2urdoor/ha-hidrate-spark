@@ -162,8 +162,8 @@ The percentage for row `n` of `count` is
 
 *Seen:* on 53.63 SETTINGS is six bytes: the bottle's size, then colour A and colour B, each a
 little-endian u16 in RGB565. A bottle that had never had a colour set read `6d02 0000 0000`. A colour
-A of `0x0001` is a special value meaning rainbow. Only Rainbow and Blue have been written to a bottle
-and watched, and both glowed as named. The others are untested.
+A of `0x0001` is a special value meaning rainbow. All eight below have been written to a bottle and
+watched, and they work.
 
 | Colour | A | B |
 |---|---|---|
