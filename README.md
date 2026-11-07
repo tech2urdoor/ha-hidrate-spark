@@ -6,9 +6,10 @@ Use your HidrateSpark smart bottle from Home Assistant, over Bluetooth, with no 
 cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer).
 
 > [!WARNING]
-> **Status: early, and proven on one bottle only.** On a Steel with firmware 53.63 it connects
-> through a Bluetooth proxy with no pairing, and it has read a real sip with the right time and a
-> plausible amount. Glow reminders, Find and calibration haven't been shown to work on any bottle.
+> **Status: early, and proven on one bottle only.** On a Steel with firmware 53.63, installed through
+> HACS, it connects through a Bluetooth proxy with no pairing, syncs by itself while the bottle stays
+> in range, and has read a real sip with the right time and a plausible amount. Glow reminders, Find
+> and calibration haven't been shown to work on any bottle.
 > No other bottle has been tried. Read
 > [what it writes to your bottle](docs/what-it-writes.md) before you install it.
 
@@ -61,7 +62,7 @@ in the options.
 ## Requirements
 
 - Home Assistant 2025.1 or newer, with the Bluetooth integration set up. It has only been run on
-  2026.10, so older versions are untested. The icon needs 2026.3.
+  2026.10, so older versions are untested. CI imports it against the latest release. The icon needs 2026.3.
 - A Bluetooth adapter, or a [Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html) that
   allows active connections, in range of where the bottle usually sits. A passive-only proxy can't
   read it, because the bottle's adverts carry no readings.

@@ -58,6 +58,16 @@ python3 tests/test_hidrate_spark.py
 Everything that touches bytes lives in `protocol.py`, `session.py` and `sip_log.py`, which don't
 import Home Assistant. Keep it that way, so each byte can be pinned by a test.
 
+CI also imports every module and tests the coordinator against a real Home Assistant, which is what
+notices a name Home Assistant doesn't have. To run those yourself, in a virtual environment:
+
+```bash
+pip install homeassistant
+python tests/check_imports.py --requirements | pip install -r /dev/stdin
+python tests/check_imports.py
+python tests/test_coordinator.py
+```
+
 Some rules hold for every change:
 
 - **Never write to anything in `NEVER_WRITE`,** and never start a firmware update. A test holds this.
