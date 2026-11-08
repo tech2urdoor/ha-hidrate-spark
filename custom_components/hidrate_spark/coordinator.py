@@ -277,10 +277,19 @@ class HidrateCoordinator:
         async with self._lock:
             self._last_attempt = time.monotonic()
             took_any = False
+            keep_raw = False
+
+            def on_firmware(firmware: protocol.Firmware) -> None:
+                nonlocal keep_raw
+                keep_raw = firmware.keeps_raw_records
 
             def on_sip(packet: protocol.Packet, received: float) -> None:
                 nonlocal took_any
                 at = datetime.fromtimestamp(received - max(0, packet.seconds_ago), timezone.utc)
+                if keep_raw:
+                    self.log.keep_raw(at, packet.data)
+                    self._store.async_delay_save(self._as_dict, 1)
+                    _LOGGER.info("Record from a bottle not yet tried with this integration: %s", packet.data.hex())
                 if self.log.add(packet, at, self.size_ml) is None:
                     _LOGGER.debug("Skipped %s (refill or repeat)", packet)
                     return
@@ -297,6 +306,7 @@ class HidrateCoordinator:
                     now_seconds=self._now_seconds,
                     glow=self._glow(),
                     known_serial=self.serial,
+                    on_firmware=on_firmware,
                 )
 
             try:

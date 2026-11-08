@@ -48,6 +48,13 @@ class SipLog:
         self.daily: dict[str, float] = {}
         # Records whose level rose. They aren't sips, but they do say how full the bottle is.
         self.rises: list[tuple[datetime, tuple[int, int, int, int]]] = []
+        # Whole records from firmware no one has run this with, so a wrong reading can be redone.
+        self.raw_records: list[tuple[datetime, str]] = []
+
+    def keep_raw(self, at: datetime, data: bytes) -> None:
+        record = (at, bytes(data).hex())
+        if record not in self.raw_records:
+            bisect.insort(self.raw_records, record)
 
     def add(self, packet: Packet, at: datetime, size_ml: float) -> Sip | None:
         """Returns the sip, or None for a refill (the level rose) or a repeat of one already held."""
@@ -114,12 +121,14 @@ class SipLog:
         cutoff = now - timedelta(days=KEEP_SIPS_DAYS)
         self.sips = [s for s in self.sips if s.at >= cutoff]
         self.rises = [r for r in self.rises if r[0] >= cutoff]
+        self.raw_records = [r for r in self.raw_records if r[0] >= cutoff]
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "sips": [[s.at.isoformat(), s.ml, *s.raw] for s in self.sips],
             "daily": self.daily,
             "rises": [[a.isoformat(), *r] for a, r in self.rises],
+            "raw_records": [[a.isoformat(), data] for a, data in self.raw_records],
         }
 
     def load(self, data: dict[str, Any]) -> None:
@@ -130,4 +139,7 @@ class SipLog:
         self.daily = dict(data.get("daily", {}))
         self.rises = sorted(
             (datetime.fromisoformat(row[0]), tuple(row[1:5])) for row in data.get("rises", [])
+        )
+        self.raw_records = sorted(
+            (datetime.fromisoformat(row[0]), row[1]) for row in data.get("raw_records", [])
         )

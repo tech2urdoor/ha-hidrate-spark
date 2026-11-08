@@ -23,6 +23,7 @@ from .protocol import (
     Firmware,
     GlowSettings,
     Packet,
+    acknowledge_command,
     colour_settings,
     weight_reading,
     history_command,
@@ -123,6 +124,9 @@ async def read_sips(
                 continue
             on_sip(packet, received)
             count += 1
+            # Only once the sip is handed over, so a dropped link can't lose one the bottle let go of.
+            if firmware.acknowledges_each_sip:
+                await client.write_gatt_char(SIPS, acknowledge_command())
     finally:
         try:
             await client.stop_notify(SIPS)
@@ -165,11 +169,14 @@ async def sync(
     known_serial: str | None = None,
     idle_seconds: float = IDLE_SECONDS,
     clock: Callable[[], float] = time.time,
+    on_firmware: Callable[[Firmware], None] | None = None,
 ) -> SyncResult:
     """Sips first, because they matter most; then battery and weight; then the reminders."""
     firmware = await read_firmware(client)
     if not firmware.supported:
         raise UnsupportedBottle(f"Firmware {firmware.raw} isn't a kind this integration can read")
+    if on_firmware is not None:
+        on_firmware(firmware)
 
     packets = await read_sips(
         client, firmware, size_ml, on_sip, idle_seconds=idle_seconds, clock=clock

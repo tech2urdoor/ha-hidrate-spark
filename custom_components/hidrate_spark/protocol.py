@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 SERVICE = "45855422-6565-4cd7-a2a9-fe8af41b85e8"
 
@@ -56,6 +56,9 @@ GLOW_COLOURS = {
 }
 SETTINGS_LENGTH = 6
 
+# Sent after each sip by bottles that wait to be told a sip arrived before sending the next.
+ACKNOWLEDGE_SIP = 0x33
+
 SECONDS_IN_DAY = 86400
 SCHEDULE_SLOTS = 12
 
@@ -87,12 +90,25 @@ class Firmware:
 
     @property
     def supported(self) -> bool:
-        """Kinds that need no per-sip acknowledgement and no correction curve.
+        """The kinds whose sips this integration reads.
 
-        The older kinds and Telink work differently. Sips read off a bottle can't be read again, so
-        anything else is refused before the first sip rather than decoded on a guess.
+        Below 8 and 20 to 29 are other products, and Telink sends its sips another way. Sips read off
+        a bottle can't be read again, so those are refused before the first sip.
         """
-        return 40 <= self.major < 100
+        return 8 <= self.major < 20 or 30 <= self.major < 100
+
+    @property
+    def acknowledges_each_sip(self) -> bool:
+        """Bottles below 30 wait for ACKNOWLEDGE_SIP after each sip before sending the next."""
+        return self.is_telink or self.major < 30
+
+    @property
+    def keeps_raw_records(self) -> bool:
+        """No bottle below 40 has been run with this integration, so its records are kept whole.
+
+        If their layout turns out to differ, the amounts can be worked out again from what was kept.
+        """
+        return self.major < 40
 
     @property
     def can_set_colour(self) -> bool:
@@ -106,6 +122,10 @@ def colour_settings(current: bytes, colour: str) -> bytes:
     if len(current) != SETTINGS_LENGTH:
         raise ValueError(f"SETTINGS is {len(current)} bytes, expected {SETTINGS_LENGTH}")
     return current[:2] + struct.pack("<HH", *GLOW_COLOURS[colour])
+
+
+def acknowledge_command() -> bytes:
+    return bytes((ACKNOWLEDGE_SIP,))
 
 
 def history_command(firmware: Firmware) -> int:
@@ -126,6 +146,7 @@ class Packet:
     high: int = 0
     start: int = 0
     stop: int = 0
+    data: bytes = field(default=b"", compare=False, repr=False)
 
     @property
     def raw_key(self) -> tuple[int, int, int, int]:
@@ -138,7 +159,7 @@ def parse_packet(data: bytes) -> Packet:
     if len(data) < 16:
         return Packet(remaining=data[0] if data else 0)
     remaining, unused, seconds, low, high, start, stop = struct.unpack_from("<BxHiHHHH", data)
-    return Packet(remaining, True, unused, seconds, low, high, start, stop)
+    return Packet(remaining, True, unused, seconds, low, high, start, stop, data)
 
 
 def weight_reading(data: bytes) -> int | None:

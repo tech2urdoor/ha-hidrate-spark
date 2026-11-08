@@ -62,7 +62,10 @@ hardware family.
 
 | Major version | Family | This integration |
 |---|---|---|
-| Below 40 | Older bottles, which work differently | Refuses before reading a sip |
+| Below 8 | The earliest bottles | Refuses before reading a sip |
+| 8 to 19 | Older bottles that wait for `0x33` after each sip | Attempts it, and keeps each record whole. Never run |
+| 20 to 29 | A different product | Refuses before reading a sip |
+| 30 to 39 | Older bottles, read like newer ones | Attempts it, and keeps each record whole. Never run |
 | 40 to 79 | Believed to be Cypress chips. The app treats 50 to 59 as Steel bottles | Attempts it. Only 53.63 has been run |
 | 80 to 99 | Nordic chips | Attempts it |
 | 100 to 110 | Telink chips, which work differently | Refuses before reading a sip |
@@ -71,25 +74,31 @@ hardware family.
 The app treats a Steel differently only when reading and writing SETTINGS, which this integration
 writes only to change the glow colour, so the reminder bytes are the same.
 
-The refusal is deliberate. Sips are one-shot, so decoding them on a guess could lose them.
+The refusals are deliberate. Sips are one-shot, so decoding them on a guess could lose them. For
+the older bottles the integration does attempt, it saves each notification exactly as received
+alongside the sip, so a wrong reading can be redone later from the saved bytes.
 
 ## Reading sips
 
 1. Read FIRMWARE_REVISION.
 2. Subscribe to notifications on SIPS.
-3. Write one byte to SIPS: `0x57` on firmware this integration supports. Telink bottles, and
-   older ones below major version 30, use `0x55`. The exception is 7.x from minor version 24, which
-   uses `0x57`.
-4. Each sip arrives as a notification, with no acknowledgement needed. If a packet carries no sip
-   and says more are waiting, write the byte again.
+3. Write one byte to SIPS: `0x57` from major version 30 up. Telink bottles, and older ones below
+   major version 30, use `0x55`. The exception is 7.x from minor version 24, which uses `0x57`.
+4. Each sip arrives as a notification. Below major version 30, and on Telink, write `0x33` to SIPS
+   after each sip to ask for the next. This integration writes it only after the sip has been
+   handed over to be saved. Newer bottles need no acknowledgement. If a packet carries no sip and
+   says more are waiting, write the byte from step 3 again.
 5. Stop when a packet with no sip says none are left, or when nothing arrives for ten seconds. This
    integration also gives up after three minutes.
 
 *Seen:* on 53.63 a real sip arrived with the right time and a plausible amount, and a second sync
 straight after got nothing. So a sip is gone from the bottle once it's been read.
 
-Older and Telink bottles also expect `0x33` after each sip, and older ones need a correction curve
-on the amount. Neither is implemented, which is part of why they're refused.
+Telink bottles are still refused: they're believed to differ in more than the acknowledgement.
+Bottles from major version 8 to 39 are believed to have their amounts adjusted by the app near full
+and near empty. This integration doesn't do that and uses the straight share below. Public captures
+from an older bottle ([wban-python](https://github.com/choonkiatlee/wban-python)) show byte 1
+matching that straight share, as a whole percent of the bottle, on two of three sips.
 
 ### The notification
 
@@ -98,7 +107,7 @@ Little-endian, 16 bytes:
 | Bytes | Type | Meaning |
 |---|---|---|
 | 0 | u8 | Sips still on the bottle. A packet shorter than 16 bytes carries only this |
-| 1 | | Unused here |
+| 1 | u8 | Unused here. On captures from an older bottle it was the sip as a whole percent of the bottle |
 | 2–3 | u16 | Not part of the amount. Only checked for zero, to spot an empty record |
 | 4–7 | i32 | Seconds since the sip. The bottle needs no clock: sip time is now minus this |
 | 8–9 | u16 | Sensor minimum |

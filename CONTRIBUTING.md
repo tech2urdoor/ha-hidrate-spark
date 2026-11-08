@@ -43,8 +43,9 @@ It grows only with evidence, in these steps:
 Each cell in that table says **Works** only if someone has seen it work on a real bottle. Please
 keep it that way.
 
-Bottles below firmware 40 and Telink bottles (100 and up) need more than a wider range. They expect
-an acknowledgement after each sip, and the oldest need a correction curve. See
+Firmware 8–19 and 30–39 are attempted without having been run, because the protocol for them is
+well understood, and every record from them is saved whole so a wrong reading can be redone.
+Firmware below 8, 20–29 and Telink bottles (100 and up) need more than a wider range. See
 [the protocol notes](docs/protocol.md#reading-sips).
 
 ## Changing the code
@@ -73,7 +74,8 @@ Some rules hold for every change:
 - **Never write to anything in `NEVER_WRITE`,** and never start a firmware update. A test holds this.
 - **A new write needs its own justification.** Add a test for its bytes, and describe it in
   [docs/what-it-writes.md](docs/what-it-writes.md) in plain language.
-- **Never decode on a guess.** An unknown firmware gets refused before its first sip.
+- **Never decode on a guess.** An unknown firmware gets refused before its first sip. A firmware
+  that's attempted without having been run keeps its raw records, so nothing it hands over is lost.
 - **Nothing from Hidrate goes in this repository.** No code, text, images or files from their app,
   including decompiled code, even in an issue. Describe what the bottle does, in your own words. The
   bytes themselves are fine, because they're facts about how the bottle communicates.

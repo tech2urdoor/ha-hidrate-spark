@@ -127,8 +127,18 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 |---|---|---|---|---|---|---|---|
 | Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked | Works | Untested |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
-| Firmware below 40 | | Untested | Refused | Refused | Refused | Untested | Untested |
+| Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
+| Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
+
+**Older bottles** (firmware 8–19 and 30–39, which includes bottles sold as the Spark 3) are read the
+same way as newer ones, and those below 30 are also sent the acknowledgement they expect after each
+sip. No one has run these with this integration yet, so for them it also keeps each sip's record
+exactly as the bottle sent it. If the reading turns out wrong, the amounts can be worked out again
+from those records rather than lost. Amounts are a straight share of the bottle. The app is believed
+to adjust readings on these bottles when they're nearly full or nearly empty, so amounts there may
+differ from what the app showed. Most of these bottles hold 592 mL (20 oz), so enter that at setup
+unless yours is different.
 
 `Last refill` has found one refill in the Steel's real sip records, at about the time one was watched. The bottle
 sending its own record of a refill hasn't been seen.
@@ -153,7 +163,7 @@ can't be checked by reading them back, so the proof was watching it glow on time
 connected, at minutes the app had never been set to. A schedule set by the app can stay on the
 bottle, so a reminder at a time the app also used proves nothing.
 
-The range 40–99 comes from reading the protocol. Only 53.x has been run. Yours can change that:
+The supported ranges come from reading the protocol. Only 53.x has been run. Yours can change that:
 [report your bottle](CONTRIBUTING.md#report-your-bottle).
 
 To find your firmware version, run the probe below. You don't need to read any sips.

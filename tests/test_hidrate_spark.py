@@ -48,10 +48,23 @@ class FirmwareTest(unittest.TestCase):
             p.Firmware.parse(b"banana")
 
     def test_supported_kinds(self):
-        for good in (b"40.0", b"55.1", b"85.3", b"99.0"):
+        for good in (b"8.0", b"19.9", b"30.0", b"35.0", b"40.0", b"55.1", b"85.3", b"99.0"):
             self.assertTrue(p.Firmware.parse(good).supported, good)
-        for bad in (b"7.24", b"25.0", b"35.0", b"100.0", b"110.1"):
+        for bad in (b"3.1", b"7.24", b"20.0", b"25.0", b"29.9", b"100.0", b"110.1", b"111.0"):
             self.assertFalse(p.Firmware.parse(bad).supported, bad)
+
+    def test_which_kinds_acknowledge_each_sip(self):
+        for ack in (b"8.0", b"19.9", b"105.0"):
+            self.assertTrue(p.Firmware.parse(ack).acknowledges_each_sip, ack)
+        for no_ack in (b"30.0", b"39.9", b"53.63", b"85.3"):
+            self.assertFalse(p.Firmware.parse(no_ack).acknowledges_each_sip, no_ack)
+        self.assertEqual(p.acknowledge_command(), b"\x33")
+
+    def test_raw_records_are_kept_below_40_only(self):
+        self.assertTrue(p.Firmware.parse(b"12.0").keeps_raw_records)
+        self.assertTrue(p.Firmware.parse(b"35.0").keeps_raw_records)
+        self.assertFalse(p.Firmware.parse(b"40.0").keeps_raw_records)
+        self.assertFalse(STEEL.keeps_raw_records)
 
     def test_history_command(self):
         self.assertEqual(p.history_command(NORDIC), 0x57)
@@ -260,6 +273,31 @@ class ReadSipsTest(unittest.TestCase):
         self.assertEqual(client.writes, [(p.SIPS, b"\x57")])
         self.assertTrue(client.stopped)
 
+    def test_older_bottles_get_an_acknowledgement_after_each_sip(self):
+        client = FakeClient(notifications=[sip_packet(1), sip_packet(0, seconds=60)])
+        count, _ = read(client, firmware=p.Firmware.parse(b"12.3"))
+        self.assertEqual(count, 2)
+        self.assertEqual(client.writes, [(p.SIPS, b"\x55"), (p.SIPS, b"\x33"), (p.SIPS, b"\x33")])
+
+    def test_a_sip_is_handed_over_before_it_is_acknowledged(self):
+        client = FakeClient(notifications=[sip_packet(0)])
+        order = []
+        original = client.write_gatt_char
+
+        async def write(uuid, data):
+            order.append(("write", bytes(data)))
+            await original(uuid, data)
+
+        client.write_gatt_char = write
+        asyncio.run(s.read_sips(client, p.Firmware.parse(b"12.3"), 592,
+                                lambda pk, at: order.append(("sip", None)), idle_seconds=0.01))
+        self.assertEqual(order, [("write", b"\x55"), ("sip", None), ("write", b"\x33")])
+
+    def test_spark_3_era_without_acknowledgement(self):
+        client = FakeClient(notifications=[sip_packet(0)])
+        read(client, firmware=p.Firmware.parse(b"35.2"))
+        self.assertEqual(client.writes, [(p.SIPS, b"\x57")])
+
     def test_count_of_zero_finishes(self):
         count, got = read(FakeClient(notifications=[b"\x00\x00"]))
         self.assertEqual((count, got), (0, []))
@@ -317,6 +355,18 @@ class SyncTest(unittest.TestCase):
         self.run_sync(client, glow=GLOW)
         self.assertEqual(client.writes[1], (p.COMMANDS, p.day_total_command(455.25, NORDIC)))
         self.assertEqual(len(client.writes), 18)
+
+    def test_firmware_is_reported_before_the_first_sip(self):
+        client = FakeClient(firmware=b"35.2", notifications=[sip_packet(0)])
+        seen = []
+        asyncio.run(s.sync(client, size_ml=592, on_sip=lambda pk, at: seen.append("sip"),
+                           total_today=lambda: 0.0, now_seconds=lambda: 0, glow=None,
+                           idle_seconds=0.01, on_firmware=lambda fw: seen.append(fw.raw)))
+        self.assertEqual(seen, ["35.2", "sip"])
+
+    def test_packet_keeps_its_bytes(self):
+        data = sip_packet()
+        self.assertEqual(p.parse_packet(data).data, data)
 
     def test_unsupported_firmware_takes_nothing(self):
         client = FakeClient(firmware=b"105.0", notifications=[sip_packet(0)])
@@ -799,6 +849,28 @@ class LevelTest(unittest.TestCase):
         self.sip(0, 200, 400)
         self.log.prune(self.at + timedelta(days=91))
         self.assertEqual(self.log.rises, [])
+
+    def test_raw_records_are_kept_once_and_survive_a_restart(self):
+        data = sip_packet()
+        self.log.keep_raw(self.at, data)
+        self.log.keep_raw(self.at, data)
+        self.assertEqual(self.log.raw_records, [(self.at, data.hex())])
+        other = SipLog(LOCAL)
+        other.load(json.loads(json.dumps(self.log.as_dict())))
+        self.assertEqual(other.raw_records, self.log.raw_records)
+        self.assertEqual(p.parse_packet(bytes.fromhex(other.raw_records[0][1])), p.parse_packet(data))
+
+    def test_a_saved_log_from_before_raw_records_still_loads(self):
+        saved = self.log.as_dict()
+        del saved["raw_records"]
+        other = SipLog(LOCAL)
+        other.load(saved)
+        self.assertEqual(other.raw_records, [])
+
+    def test_prune_drops_old_raw_records(self):
+        self.log.keep_raw(self.at, sip_packet())
+        self.log.prune(self.at + timedelta(days=91))
+        self.assertEqual(self.log.raw_records, [])
 
 
 if __name__ == "__main__":
