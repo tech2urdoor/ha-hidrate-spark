@@ -105,6 +105,11 @@ straight after got nothing. So a sip is gone from the bottle once it's been read
 calibrated, 250 mL poured out by measuring cup read as 235 mL with the right time, and a second sync
 straight after got nothing there too.
 
+*Seen, calibration:* a second calibration on both bottles changed the empty and full readings stored with the next
+sip. On 53.63 they matched, within a unit, the weight readings taken at the two presses, and 250 mL poured out read as
+249 mL. On 90.11 the same pour read as 233 mL, about 7% low both times it was tried. 90.11 flashes when it gets
+`40` or `41`. 53.63 shows nothing for either, but still takes it.
+
 Telink bottles are still refused: they're believed to differ in more than the acknowledgement.
 Bottles from major version 8 to 39 are believed to have their amounts adjusted by the app near full
 and near empty. This integration doesn't do that and uses the straight share below. Public captures
