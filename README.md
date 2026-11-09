@@ -37,7 +37,9 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Glow colour | `Glow colour` select with eight colours, disabled by default. Firmware 50 to 59, and 80 to 99. [It changes the bottle's own settings, at your own risk](docs/what-it-writes.md#only-when-you-change-the-glow-colour) |
 
 There's also a `Sync now` button and a `Last sync` sensor, whose `last_error` attribute tells you
-what went wrong if a sync failed.
+what went wrong if a sync failed. Now and then a connection finds the bottle's services with one
+missing, and every connection after reuses that copy and fails with "Characteristic … was not
+found". When that happens the sync clears the copy and tries once more straight away.
 
 ## What doesn't carry over
 

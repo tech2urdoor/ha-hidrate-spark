@@ -161,6 +161,76 @@ class SessionTest(Base):
             self.run_session(work, module.BleakError("gone"))
 
 
+class StaleServicesTest(Base):
+    """A cached service table missing a characteristic is cleared, and the work runs once more on a new connection."""
+
+    COMMANDS = "e3578b0d-caa7-46d6-b7c2-7331c08de044"
+
+    def run_with(self, outcomes, clear_error=None):
+        clients = []
+
+        def connect(*_args, **_kwargs):
+            client = mock.Mock(disconnect=mock.AsyncMock(), clear_cache=mock.AsyncMock(side_effect=clear_error))
+            clients.append(client)
+            return client
+
+        calls = iter(outcomes)
+
+        async def work(_client):
+            outcome = next(calls)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        with (
+            mock.patch.object(module.bluetooth, "async_ble_device_from_address"),
+            mock.patch.object(module, "establish_connection", mock.AsyncMock(side_effect=connect)),
+        ):
+            try:
+                return asyncio.run(self.coordinator._session(work)), clients
+            except Exception as err:  # noqa: BLE001
+                return err, clients
+
+    def test_cleared_and_tried_again(self):
+        from bleak.exc import BleakCharacteristicNotFoundError
+
+        result, clients = self.run_with([BleakCharacteristicNotFoundError(self.COMMANDS), "synced"])
+        self.assertEqual(result, "synced")
+        self.assertEqual(len(clients), 2)
+        clients[0].clear_cache.assert_awaited_once_with()
+        clients[1].clear_cache.assert_not_awaited()
+        for client in clients:
+            client.disconnect.assert_awaited_once_with()
+
+    def test_the_plain_message_counts_too(self):
+        result, clients = self.run_with([module.BleakError(f"Characteristic {self.COMMANDS} was not found!"), "synced"])
+        self.assertEqual(result, "synced")
+        clients[0].clear_cache.assert_awaited_once_with()
+
+    def test_only_once(self):
+        from bleak.exc import BleakCharacteristicNotFoundError
+
+        missing = BleakCharacteristicNotFoundError(self.COMMANDS)
+        result, clients = self.run_with([missing, missing])
+        self.assertIs(result, missing)
+        self.assertEqual(len(clients), 2)
+
+    def test_other_errors_arent_retried(self):
+        result, clients = self.run_with([module.BleakError("out of range")])
+        self.assertEqual(str(result), "out of range")
+        self.assertEqual(len(clients), 1)
+        clients[0].clear_cache.assert_not_awaited()
+
+    def test_a_failed_clear_still_tries_again(self):
+        from bleak.exc import BleakCharacteristicNotFoundError
+
+        result, clients = self.run_with(
+            [BleakCharacteristicNotFoundError(self.COMMANDS), "synced"], clear_error=module.BleakError("no cache")
+        )
+        self.assertEqual(result, "synced")
+        self.assertEqual(len(clients), 2)
+
+
 class UnsupportedTest(Base):
     def setUp(self):
         super().setUp()

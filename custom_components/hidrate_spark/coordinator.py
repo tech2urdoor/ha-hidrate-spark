@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from bleak.exc import BleakError
+from bleak.exc import BleakCharacteristicNotFoundError, BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
@@ -47,6 +47,11 @@ from .sip_log import SipLog
 _LOGGER = logging.getLogger(__name__)
 
 CONNECTION_ERRORS = (BleakError, TimeoutError, EOFError, OSError)
+
+
+def _missing_characteristic(err: BleakError) -> bool:
+    """The bottle has it, so this means the service table was cached incomplete."""
+    return isinstance(err, BleakCharacteristicNotFoundError) or "was not found" in str(err)
 
 
 def _seconds_of_day(value: str) -> int:
@@ -262,6 +267,22 @@ class HidrateCoordinator:
         self._notify()
 
     async def _session(self, work: Callable[[Any], Awaitable[Any]]) -> Any:
+        """Connects and runs the work, once more if the bottle's service table came back incomplete.
+
+        A connection now and then finds the services without one the bottle really has, and then every later
+        connection reuses that cached table and fails the same way. Clearing the cache makes the next one look
+        again. The work is safe to repeat: sips are saved as they arrive and a repeat is skipped, and every
+        write sets a value rather than adding to one.
+        """
+        try:
+            return await self._session_once(work)
+        except BleakError as err:
+            if not _missing_characteristic(err):
+                raise
+            _LOGGER.debug("A characteristic was missing (%s), so trying again with the services looked up afresh", err)
+        return await self._session_once(work)
+
+    async def _session_once(self, work: Callable[[Any], Awaitable[Any]]) -> Any:
         device = bluetooth.async_ble_device_from_address(
             self.hass, self.address, connectable=True
         )
@@ -282,6 +303,13 @@ class HidrateCoordinator:
             )
             try:
                 return await work(client)
+            except BleakError as err:
+                if _missing_characteristic(err):
+                    try:
+                        await client.clear_cache()
+                    except CONNECTION_ERRORS as clear_err:
+                        _LOGGER.debug("Couldn't clear the service cache: %s", clear_err)
+                raise
             finally:
                 try:
                     await client.disconnect()
