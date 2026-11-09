@@ -169,7 +169,7 @@ both accepted, and the sip after started exactly at the sensor maximum.
 | SCHEDULE | `93 3d` / `92` | Glow when the goal is reached: on, with its strobe value / off |
 | SCHEDULE | `77 00 00 00` + u32 little-endian | Seconds since midnight |
 | SCHEDULE | 8-byte row, below | One row of the schedule |
-| GLOW_NOW | one glow byte, below | Glow now. *Seen:* works on 53.63 |
+| GLOW_NOW | one glow byte, below | Glow now. *Seen:* works on 53.63, and on 90.11 once GLOW_COLOUR held a colour |
 
 ### Schedule rows
 
@@ -201,8 +201,8 @@ A of `0x0001` is a special value meaning rainbow. All eight below have been writ
 watched, and they work.
 
 Nordic bottles (80 to 99) keep the same two values in GLOW_COLOUR on their own: four bytes, colour A
-then colour B, each a little-endian u16. Aqua is `ff07 e107`. A colour written there hasn't yet been
-watched on a real bottle.
+then colour B, each a little-endian u16. Aqua is `ff07 e107`. *Seen:* a 90.11 that read `0000 0000`
+there showed nothing on Find. Once Aqua had been written and read back, Find glowed.
 
 | Colour | A | B |
 |---|---|---|
@@ -229,8 +229,8 @@ watched on a real bottle.
 | Flash effect | `34` |
 
 *Seen:* on 53.63 the pulse and spin effects work through GLOW_NOW, and one write plays more than once
-by itself. They use the bottle's glow colour. The flash effect hasn't been watched, and nor has an effect
-in a schedule row.
+by itself. They use the bottle's glow colour. On 53.63 and 90.11 one write of the flash effect plays it
+three times in a row. An effect in a schedule row hasn't been watched.
 
 ## Still unknown
 

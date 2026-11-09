@@ -12,7 +12,7 @@ cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer
 > has set glow reminders that fired on time with nothing connected.
 > A second bottle, a 946 mL Pro with firmware 90.11, has connected and synced straight out of the box,
 > never set up with the app. It was calibrated empty then full from here, and one measured pour of
-> 250 mL then read as 235 mL. Read
+> 250 mL then read as 235 mL. It glowed on Find only once a glow colour had been set from here. Read
 > [what it writes to your bottle](docs/what-it-writes.md) before you install it.
 
 The point of publishing it is so other owners can report their bottles and get them working. If
@@ -112,7 +112,7 @@ in range. While reminders are off, changing the others sends nothing to the bott
 | Daily goal | 2000 mL | *Control* |
 | Wake time, Bedtime | 07:00, 22:00 | *Control.* Reminders are spaced between these |
 | Minutes between reminders | 60 | *Control.* 0 for none. The bottle holds 12 at most, counted from wake time, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
-| Glow | High | *Control.* High, medium, low, short pulse, short white pulse, pulse effect, spin effect, flash effect. Used for reminders and Find. An effect repeats by itself from one press of Find. The flash effect is untested |
+| Glow | High | *Control.* High, medium, low, short pulse, short white pulse, pulse effect, spin effect, flash effect. Used for reminders and Find. An effect repeats by itself from one press of Find: the flash effect plays three times in a row |
 | Glow at every reminder | Off | *Control.* Otherwise only when you're behind |
 | Glow on each sip | On | |
 | Glow when the goal is reached | On | |
@@ -127,7 +127,7 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
 | Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked | Works | Untested |
-| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Untested | Reads a value, but it said 9% while the bottle's own lights showed fully charged | Untested | Pressed empty then full out of the box, with no error, and the next sip read close |
+| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Untested | Reads a value, but it said 9% while the bottle's own lights showed fully charged | Works, but only once a glow colour was set. Before that it showed nothing | Pressed empty then full out of the box, with no error, and the next sip read close |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
 | Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |
@@ -139,8 +139,8 @@ out wrong, or a bottle that was never calibrated sends sips that work out to not
 be worked out again from those records rather than lost.
 
 **The Pro** (firmware 90.11) keeps its glow colour apart from its other settings, and one never set up
-with the app has none at all. `Glow colour` writes it the way it's believed the app does, but that
-hasn't been watched on a real bottle yet, and nor has the Pro glowing. It refuses a
+with the app has none at all. Find showed nothing on it until `Glow colour` had written one, and then it glowed, so set a colour
+first if yours stays dark. It refuses a
 plain read of its weight value, so `Water left` comes from sips and the mark buttons can't get a
 reading. It came uncalibrated out of the box and was calibrated from here before its first sip, so
 whether an uncalibrated one reads sips right still isn't known. Calibrate it empty, then full, before

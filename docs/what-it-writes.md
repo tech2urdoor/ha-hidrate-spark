@@ -60,8 +60,8 @@ rest of this project. It's disabled by default, and a sync never reads or writes
 On firmware 50 to 59 it reads SETTINGS first and refuses unless there are exactly six bytes, keeps
 the first two as they were, then reads them back to check. On 80 to 99 it reads GLOW_COLOUR first,
 refuses unless there are exactly four bytes, writes the two colours, then reads them back to check.
-It refuses every other firmware. Only the 50 to 59 layout has been seen working. A 90.11 that was
-never set up with the app read no colour at all.
+It refuses every other firmware. Both have been seen working. A 90.11 that was never set up with the app
+read no colour at all, and Find showed nothing on it until one was written.
 
 ## The probe
 
