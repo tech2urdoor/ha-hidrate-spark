@@ -67,6 +67,13 @@ read no colour at all, and Find showed nothing on it until one was written.
 
 `hidrate_spark.probe` writes nothing and takes no sips. It only reads. If you set `weight_seconds`, it also turns on WEIGHT notifications while it listens, which is a flag on the Bluetooth connection, and turns them off again.
 
+## Outside the bottle: Bermuda, only if you tick it at setup
+
+If you tick "Track which room it's in with Bermuda" when adding the bottle, the bottle's address is
+added to Bermuda's Select Devices setting, through Bermuda's own settings screens. That's a change to
+Bermuda's settings in Home Assistant, not to the bottle, and it's the only time this integration
+changes another integration. It never removes anything there.
+
 ## What it never writes
 
 These four are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.

@@ -22,6 +22,7 @@ from homeassistant.helpers.selector import (
     TimeSelector,
 )
 
+from . import bermuda
 from .const import (
     CONF_FREQUENCY_MIN,
     CONF_GLOW_ALWAYS,
@@ -42,6 +43,7 @@ from .const import (
 from .protocol import LIGHTS, SERVICE
 
 TITLE = "Water Bottle"
+CONF_BERMUDA = "bermuda"
 
 
 def _number(low: int, high: int, step: int, unit: str) -> NumberSelector:
@@ -62,6 +64,40 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._discovery: BluetoothServiceInfoBleak | None = None
+        self._address: str | None = None
+        self._size_ml: float | None = None
+
+    def _setup_fields(self) -> dict[Any, Any]:
+        """The size, and the Bermuda tick box only where Bermuda is running."""
+        fields = _size_field()
+        if bermuda.available(self.hass):
+            fields[vol.Required(CONF_BERMUDA, default=False)] = BooleanSelector()
+        return fields
+
+    async def _async_finish(self, address: str, user_input: dict[str, Any]) -> ConfigFlowResult:
+        self._address = address
+        self._size_ml = user_input[CONF_SIZE_ML]
+        if user_input.get(CONF_BERMUDA) and not await bermuda.async_track(self.hass, address):
+            return await self.async_step_bermuda_manual()
+        return self._create()
+
+    def _create(self) -> ConfigFlowResult:
+        assert self._address is not None
+        return self.async_create_entry(
+            title=TITLE,
+            data={CONF_ADDRESS: self._address},
+            options={CONF_SIZE_ML: self._size_ml},
+        )
+
+    async def async_step_bermuda_manual(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Bermuda couldn't be changed from here, so say how, and set the bottle up anyway."""
+        if user_input is not None:
+            return self._create()
+        return self.async_show_form(
+            step_id="bermuda_manual",
+            data_schema=vol.Schema({}),
+            description_placeholders={"address": (self._address or "").upper()},
+        )
 
     @staticmethod
     @callback
@@ -78,14 +114,10 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         assert self._discovery is not None
         if user_input is not None:
-            return self.async_create_entry(
-                title=TITLE,
-                data={CONF_ADDRESS: self._discovery.address},
-                options={CONF_SIZE_ML: user_input[CONF_SIZE_ML]},
-            )
+            return await self._async_finish(self._discovery.address, user_input)
         return self.async_show_form(
             step_id="confirm",
-            data_schema=vol.Schema(_size_field()),
+            data_schema=vol.Schema(self._setup_fields()),
             description_placeholders={"name": self._discovery.name},
         )
 
@@ -93,11 +125,7 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_ADDRESS])
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(
-                title=TITLE,
-                data={CONF_ADDRESS: user_input[CONF_ADDRESS]},
-                options={CONF_SIZE_ML: user_input[CONF_SIZE_ML]},
-            )
+            return await self._async_finish(user_input[CONF_ADDRESS], user_input)
         current = self._async_current_ids()
         found = {
             info.address: f"{info.name} ({info.address})"
@@ -110,7 +138,7 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="no_devices_found")
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(found), **_size_field()}),
+            data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(found), **self._setup_fields()}),
         )
 
 

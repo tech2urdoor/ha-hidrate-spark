@@ -520,6 +520,7 @@ class SetupTest(unittest.TestCase):
     def flow(self):
         flow = config_flow.HidrateConfigFlow()
         flow.hass = mock.Mock()
+        flow.hass.config_entries.async_entries.return_value = []  # no Bermuda
         flow.context = {}
         flow._discovery = SimpleNamespace(address=ADDRESS, name="h2oTEST")
         return flow
@@ -541,6 +542,96 @@ class SetupTest(unittest.TestCase):
         result = asyncio.run(flow.async_step_user({"address": ADDRESS, "size_ml": 946}))
         self.assertEqual(result["data"], {"address": ADDRESS})
         self.assertEqual(result["options"], {"size_ml": 946})
+
+
+class BermudaSetupTest(unittest.TestCase):
+    """Setup can add the bottle to Bermuda, through Bermuda's own settings, and says how if it can't."""
+
+    def bermuda_entry(self, picked=(), state=None):
+        from homeassistant.config_entries import ConfigEntryState
+
+        return SimpleNamespace(
+            entry_id="b1", options={"configured_devices": list(picked)}, state=state or ConfigEntryState.LOADED
+        )
+
+    def hass(self, entries, answers=()):
+        hass = mock.Mock()
+        hass.config_entries.async_entries.return_value = entries
+        flows = hass.config_entries.options
+        flows.async_init = mock.AsyncMock(
+            return_value={"type": "menu", "flow_id": "f1", "menu_options": ["globalopts", "selectdevices"]}
+        )
+        flows.async_configure = mock.AsyncMock(side_effect=list(answers))
+        flows.async_abort = mock.Mock()
+        return hass
+
+    def flow(self, hass):
+        flow = config_flow.HidrateConfigFlow()
+        flow.hass = hass
+        flow.context = {}
+        flow._discovery = SimpleNamespace(address=ADDRESS.lower(), name="h2oTEST")
+        return flow
+
+    FORM = {"type": "form", "step_id": "selectdevices"}
+    DONE = {"type": "create_entry"}
+
+    def test_no_tick_box_without_bermuda(self):
+        result = asyncio.run(self.flow(self.hass([])).async_step_confirm())
+        self.assertNotIn("bermuda", result["data_schema"]({}))
+
+    def test_tick_box_is_off_unless_ticked(self):
+        result = asyncio.run(self.flow(self.hass([self.bermuda_entry()])).async_step_confirm())
+        self.assertIs(result["data_schema"]({})["bermuda"], False)
+
+    def test_a_stopped_bermuda_isnt_offered(self):
+        from homeassistant.config_entries import ConfigEntryState
+
+        hass = self.hass([self.bermuda_entry(state=ConfigEntryState.SETUP_ERROR)])
+        result = asyncio.run(self.flow(hass).async_step_confirm())
+        self.assertNotIn("bermuda", result["data_schema"]({}))
+
+    def test_ticked_adds_it_to_what_bermuda_already_tracks(self):
+        hass = self.hass([self.bermuda_entry(["11:22:33:44:55:66"])], [self.FORM, self.DONE])
+        result = asyncio.run(self.flow(hass).async_step_confirm({"size_ml": 621, "bermuda": True}))
+        self.assertEqual(result["type"], "create_entry")
+        self.assertEqual(result["options"], {"size_ml": 621})
+        last = hass.config_entries.options.async_configure.call_args_list[-1]
+        self.assertEqual(last.args, ("f1", {"configured_devices": ["11:22:33:44:55:66", ADDRESS]}))
+
+    def test_unticked_leaves_bermuda_alone(self):
+        hass = self.hass([self.bermuda_entry()])
+        result = asyncio.run(self.flow(hass).async_step_confirm({"size_ml": 621, "bermuda": False}))
+        self.assertEqual(result["type"], "create_entry")
+        hass.config_entries.options.async_init.assert_not_called()
+
+    def test_already_tracked_changes_nothing(self):
+        hass = self.hass([self.bermuda_entry([ADDRESS])])
+        result = asyncio.run(self.flow(hass).async_step_confirm({"size_ml": 621, "bermuda": True}))
+        self.assertEqual(result["type"], "create_entry")
+        hass.config_entries.options.async_init.assert_not_called()
+
+    def test_a_refusal_says_how_and_still_sets_it_up(self):
+        refused = {"type": "form", "step_id": "selectdevices", "errors": {"base": "x"}}
+        hass = self.hass([self.bermuda_entry()], [self.FORM, refused])
+        flow = self.flow(hass)
+        result = asyncio.run(flow.async_step_confirm({"size_ml": 621, "bermuda": True}))
+        self.assertEqual(result["step_id"], "bermuda_manual")
+        self.assertEqual(result["description_placeholders"], {"address": ADDRESS})
+        hass.config_entries.options.async_abort.assert_called_once_with("f1")
+        result = asyncio.run(flow.async_step_bermuda_manual({}))
+        self.assertEqual(result["type"], "create_entry")
+        self.assertEqual(result["data"], {"address": ADDRESS.lower()})
+
+    def test_a_changed_bermuda_falls_back_too(self):
+        hass = self.hass([self.bermuda_entry()])
+        hass.config_entries.options.async_init.return_value = {"type": "menu", "flow_id": "f1", "menu_options": ["other"]}
+        result = asyncio.run(self.flow(hass).async_step_confirm({"size_ml": 621, "bermuda": True}))
+        self.assertEqual(result["step_id"], "bermuda_manual")
+
+    def test_an_error_inside_bermuda_falls_back(self):
+        hass = self.hass([self.bermuda_entry()], [RuntimeError("boom")])
+        result = asyncio.run(self.flow(hass).async_step_confirm({"size_ml": 621, "bermuda": True}))
+        self.assertEqual(result["step_id"], "bermuda_manual")
 
 
 class ProbeChoiceTest(unittest.TestCase):

@@ -4,13 +4,30 @@
     "step": {
       "user": {
         "title": "Choose your bottle",
-        "data": { "address": "Bottle", "size_ml": "Bottle size" },
-        "data_description": { "size_ml": "Sip amounts are worked out from this." }
+        "data": {
+          "address": "Bottle",
+          "size_ml": "Bottle size",
+          "bermuda": "Track which room it's in with Bermuda"
+        },
+        "data_description": {
+          "size_ml": "Sip amounts are worked out from this.",
+          "bermuda": "Adds the bottle to Bermuda's devices. Bermuda will show it under the name it advertises, starting h2o, which you can rename."
+        }
       },
       "confirm": {
         "description": "Set up {name}? The Hidrate app must be closed, because the bottle takes one connection at a time.",
-        "data": { "size_ml": "Bottle size" },
-        "data_description": { "size_ml": "Sip amounts are worked out from this." }
+        "data": {
+          "size_ml": "Bottle size",
+          "bermuda": "Track which room it's in with Bermuda"
+        },
+        "data_description": {
+          "size_ml": "Sip amounts are worked out from this.",
+          "bermuda": "Adds the bottle to Bermuda's devices. Bermuda will show it under the name it advertises, starting h2o, which you can rename."
+        }
+      },
+      "bermuda_manual": {
+        "title": "Add it to Bermuda yourself",
+        "description": "Bermuda couldn't be changed from here, so the bottle will be set up without it. To track it, open Bermuda's Configure, choose Select Devices, and add {address}. If it isn't in the list yet, wait a minute for Bermuda to hear it."
       }
     },
     "abort": {

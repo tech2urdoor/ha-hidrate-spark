@@ -98,8 +98,24 @@ restart.
 1. Close the Hidrate app if you have it, or the bottle won't be free.
 2. Once Home Assistant hears the bottle, it should offer it under **Settings → Devices & services**.
    If it doesn't, choose **Add integration** and search for HidrateSpark.
-3. Enter your bottle's size when it asks.
+3. Enter your bottle's size when it asks. If you run [Bermuda](https://github.com/agittins/bermuda),
+   there's also a tick box to have Bermuda track which room the bottle is in. See below.
 4. Press **Sync now**, then check that `Last sync` updates.
+
+### Bermuda
+
+If the [Bermuda](https://github.com/agittins/bermuda) integration is installed and running, setup
+offers **Track which room it's in with Bermuda**, off unless you tick it. Ticked, it adds the bottle
+to the devices picked in Bermuda's **Select Devices** setting, alongside whatever's there already,
+by going through that setting the way you would. Bermuda then shows the bottle under the name it
+advertises, starting `h2o`, which you can rename on its device page. Nothing is written to the
+bottle for this.
+
+Bermuda's settings aren't meant to be changed by other integrations, so if anything about them is
+unexpected, setup changes nothing in Bermuda, tells you how to add the bottle yourself, and carries
+on. Bermuda can only pick a device it has already heard, so if the bottle is new to it, that's the
+likely reason. **Untested on a real setup:** the automatic path has only run in tests, against
+the flow seen in Bermuda's own settings. Adding a bottle by hand in Bermuda works.
 
 ## Options
 
