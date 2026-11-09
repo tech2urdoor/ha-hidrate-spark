@@ -127,7 +127,7 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
 | Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked | Works | Untested |
-| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | The glow after each sip works, once a glow colour was set. A timed reminder hasn't been watched | Reads a value, but it said 9% while the bottle's own lights showed fully charged | Works, but only once a glow colour was set. Before that it showed nothing | Pressed empty then full out of the box, with no error, and the next sip read close |
+| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Untested. Once a glow colour was set, it glowed after one sip but not the next | Reads a value, but it said 9% while the bottle's own lights showed fully charged | Works, but only once a glow colour was set. Before that it showed nothing | Pressed empty then full out of the box, with no error, and the next sip read close |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
 | Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |
