@@ -28,8 +28,8 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Glow reminders | Optional, and off until you turn them on. The schedule is built from your goal, wake time, bedtime and frequency, which you can change from the device page or an automation |
 | Water level | `Water left` sensor, in mL, with `percent`, `as_of`, `source` and `reading` attributes. Press `Mark empty` with the bottle empty and `Mark full` with it full, and it reads the bottle's weight value at every sync. Until both are pressed, or if a reading can't be had, it's where the latest sip stopped, so a refill doesn't show until the next sip |
 | Refills | `Last refill` sensor, with `amount_ml` and `exact_time` attributes. Usually noticed when the next sip starts higher than the last one stopped, so it means "by this time" unless `exact_time` is true |
-| Battery | `Battery` sensor |
-| Charging | `Charging` binary sensor, and `Battery state`: charging, charged or not charging. Both come from the bottle's own status at each sync. On its charger the bottle syncs at least every 5 minutes, which costs its battery nothing, so lifting it off shows within minutes |
+| Battery | `Battery` sensor, and `Last charged`: the last sync that found the bottle on its charger, so roughly when it came off. On a bottle whose `Battery` reading can't be trusted, time since `Last charged` is the better guide |
+| Charging | `Charging` binary sensor, and `Battery state`: charging, charged or not charging. Both come from the bottle's own status at each sync. On its charger the bottle syncs at least every 5 minutes, and for 15 minutes after, which costs its battery nothing, so lifting it off shows within minutes |
 | Find my bottle | `Find` button |
 | Marks | `Mark empty` and `Mark full` buttons. These only remember a reading in Home Assistant and write nothing to the bottle, so pressing one again puts it right |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
@@ -127,8 +127,8 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
-| Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked. Charging read right on its charger. Charged, and off the charger, not seen yet | Works | Untested |
-| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Not working yet. Once a glow colour was set, one sip glowed but was never recorded, and the next two were recorded but didn't glow | Reads a value, but it said 9% while the bottle's own lights showed fully charged. Charging read right on its charger and off it. Charged not seen yet | Works, but only once a glow colour was set. Before that it showed nothing | Pressed empty then full out of the box, with no error, and the next sip read close |
+| Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, but not a measure of charge: it read 33 a minute after a full charge. Charging read right on its charger and off it. Charged not seen yet | Works | Untested |
+| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Not working yet. Once a glow colour was set, one sip glowed but was never recorded, and the next two were recorded but didn't glow | Reads a value, but it said 9% while the bottle's own lights showed fully charged. It read 100 off the charger after a full charge. Charging read right on its charger and off it. Charged not seen: full on its charger, it stopped charging for about a minute and then started again, and read not charging in that minute | Works, but only once a glow colour was set. Before that it showed nothing | Pressed empty then full out of the box, with no error, and the next sip read close |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
 | Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |
@@ -164,7 +164,8 @@ and `Water left` then read 100% with the bottle full. A level is only as fresh a
 checked it with the bottle tilted or over days, and no other bottle has been tried.
 
 Pouring water out looks like a sip to the bottle, so it counts towards `Today`. On the Steel, the `Battery` reading
-jumped around and fell after charging, so don't rely on it as a measure of charge yet. Both bottles have read 100 on
+jumped around and fell after charging, to 33 a minute after a full charge, so don't rely on it as a measure of charge.
+`Last charged` gives the time since the last charge instead. Both bottles have read 100 on
 their chargers while still reporting that they were charging. `Charging` and `Battery state` come from that separate
 status, so use those to tell whether it's charging.
 

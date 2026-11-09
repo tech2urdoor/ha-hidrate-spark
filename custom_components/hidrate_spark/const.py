@@ -39,6 +39,8 @@ RETRY_SECONDS = 300
 # On its charger a connection costs the bottle nothing, so it's checked this often, and lifting it off
 # shows within minutes. Never slower than the bottle's own setting.
 CHARGER_SYNC_SECONDS = 300
+# A full bottle on its charger can stop charging for a minute or so and then top up again; keep syncing often through that.
+CHARGER_GRACE_SECONDS = 900
 SESSION_TIMEOUT_SECONDS = 240
 # How often to look for a due sync, and how recently the bottle must have been heard to count as in
 # range. The one bottle measured so far advertises about every 2 seconds, so 120 is plenty.

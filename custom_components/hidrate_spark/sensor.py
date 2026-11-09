@@ -138,6 +138,15 @@ SENSORS = (
         value_fn=lambda c: c.charge,
     ),
     HidrateSensorDescription(
+        # The last sync that found the bottle on its charger, so roughly when it came off. The Battery reading can't be
+        # trusted on every bottle, and time since the last charge can.
+        key="last_charged",
+        name="Last charged",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda c: c.last_charged,
+    ),
+    HidrateSensorDescription(
         key="last_sync",
         name="Last sync",
         device_class=SensorDeviceClass.TIMESTAMP,

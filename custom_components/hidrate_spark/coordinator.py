@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from . import protocol, session
 from .const import (
+    CHARGER_GRACE_SECONDS,
     CHARGER_SYNC_SECONDS,
     CONF_FREQUENCY_MIN,
     CONF_GLOW_ALWAYS,
@@ -64,6 +65,7 @@ class HidrateCoordinator:
         self.battery: int | None = None
         # One of protocol.CHARGE_STATES, as of the last sync that could read it.
         self.charge: str | None = None
+        self.last_charged: datetime | None = None
         self.firmware: str | None = None
         self.serial: str | None = None
         self.colour: str | None = None
@@ -151,6 +153,8 @@ class HidrateCoordinator:
         self.mark_full = data.get("mark_full")
         if stamp := data.get("weight_at"):
             self.weight_at = datetime.fromisoformat(stamp)
+        if stamp := data.get("last_charged"):
+            self.last_charged = datetime.fromisoformat(stamp)
         if stamp := data.get("last_sync"):
             self.last_sync = datetime.fromisoformat(stamp)
 
@@ -167,6 +171,7 @@ class HidrateCoordinator:
             "mark_empty": self.mark_empty,
             "mark_full": self.mark_full,
             "last_sync": self.last_sync.isoformat() if self.last_sync else None,
+            "last_charged": self.last_charged.isoformat() if self.last_charged else None,
         }
 
     @callback
@@ -229,9 +234,14 @@ class HidrateCoordinator:
         # Trying again won't change a bottle's firmware, and every try costs it battery.
         settled = self._succeeded or self._unsupported
         wait = int(self.option(CONF_SYNC_MINUTES)) * 60 if settled else RETRY_SECONDS
-        if self._succeeded and self.charge in protocol.ON_CHARGER:
+        if self._succeeded and (self.charge in protocol.ON_CHARGER or self._recently_charged()):
             wait = min(wait, CHARGER_SYNC_SECONDS)
         return time.monotonic() - self._last_attempt >= wait
+
+    def _recently_charged(self) -> bool:
+        return self.last_charged is not None and (
+            dt_util.utcnow() - self.last_charged
+        ).total_seconds() < CHARGER_GRACE_SECONDS
 
     async def async_wait_until_idle(self) -> None:
         """Lets a running session finish, so its sips are saved before the store can be loaded again."""
@@ -331,6 +341,8 @@ class HidrateCoordinator:
                     self.battery = result.battery
                 if result.charge is not None:
                     self.charge = result.charge
+                    if result.charge in protocol.ON_CHARGER:
+                        self.last_charged = dt_util.utcnow()
                 if result.weight is not None:
                     self.weight = result.weight
                     self.weight_at = dt_util.utcnow()

@@ -25,6 +25,7 @@ from custom_components.hidrate_spark import sensor as sensor_platform  # noqa: E
 from custom_components.hidrate_spark import switch as switch_platform  # noqa: E402
 from custom_components.hidrate_spark import time as time_platform  # noqa: E402
 from custom_components.hidrate_spark.const import (  # noqa: E402
+    CHARGER_GRACE_SECONDS,
     CHARGER_SYNC_SECONDS,
     DEFAULTS,
     DUE_CHECK_SECONDS,
@@ -230,6 +231,7 @@ class ChargingTest(Base):
         again._store.async_load = mock.AsyncMock(return_value=saved)
         asyncio.run(again.async_load())
         self.assertEqual(again.charge, "charged")
+        self.assertEqual(again.last_charged, self.coordinator.last_charged)
 
     def test_on_the_charger_it_syncs_sooner(self):
         for charge in ("charging", "charged"):
@@ -252,6 +254,38 @@ class ChargingTest(Base):
         self.coordinator.charge = "charging"
         self.last_attempt(2 * 60 + 1)
         self.assertTrue(self.coordinator._due())
+
+    def last_charged_entity(self):
+        description = next(s for s in sensor_platform.SENSORS if s.key == "last_charged")
+        return sensor_platform.HidrateSensor(self.coordinator, description)
+
+    def test_last_charged_is_the_last_sync_on_the_charger(self):
+        entity = self.last_charged_entity()
+        self.assertIsNone(entity.native_value)
+        self.sync_reading("not_charging")
+        self.assertIsNone(entity.native_value)
+        for charge in ("charging", "charged"):
+            self.coordinator.last_charged = None
+            self.sync_reading(charge)
+            self.assertIsNotNone(entity.native_value, charge)
+        on_charger = entity.native_value
+        self.sync_reading("not_charging")
+        self.sync_reading(None)
+        self.assertEqual(entity.native_value, on_charger)
+
+    def test_a_pause_on_the_charger_keeps_the_short_interval(self):
+        # A full bottle on its charger stops charging for a minute and starts again; a sync in that pause reads not charging.
+        self.sync_reading("charging")
+        self.sync_reading("not_charging")
+        self.last_attempt(CHARGER_SYNC_SECONDS + 1)
+        self.assertTrue(self.coordinator._due())
+
+    def test_after_the_grace_period_it_waits_the_normal_interval(self):
+        self.sync_reading("charging")
+        self.sync_reading("not_charging")
+        self.coordinator.last_charged -= timedelta(seconds=CHARGER_GRACE_SECONDS + 1)
+        self.last_attempt(CHARGER_SYNC_SECONDS + 1)
+        self.assertFalse(self.coordinator._due())
 
 
 class UnloadTest(Base):
