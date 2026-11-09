@@ -66,16 +66,17 @@ seen.
 
 ## What it never writes
 
-These three are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.
+These four are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.
 
 | Characteristic | Why not |
 |---|---|
 | CAPACITY | The size the bottle believes it is. Size is an option on the Home Assistant side instead |
 | RUNNING_TOTAL | The bottle's own running total. A write could clear it |
 | FIRMWARE_UPDATE | The way into a firmware update |
+| FIRMWARE_UPDATE_SMP | The standard Zephyr way into a firmware update. *Seen:* firmware 90.11 has this instead of FIRMWARE_UPDATE |
 
 **No firmware updates, ever.** This integration has no firmware to offer and no code to send one.
 If your bottle needs an update, that's a job for the official app.
 
 The probe does read SETTINGS, CAPACITY, RUNNING_TOTAL and WEIGHT, because reading is safe and shows how a
-bottle differs. It does not touch FIRMWARE_UPDATE at all.
+bottle differs. It does not touch either firmware update channel at all.

@@ -60,10 +60,11 @@ class FirmwareTest(unittest.TestCase):
             self.assertFalse(p.Firmware.parse(no_ack).acknowledges_each_sip, no_ack)
         self.assertEqual(p.acknowledge_command(), b"\x33")
 
-    def test_raw_records_are_kept_below_40_only(self):
-        self.assertTrue(p.Firmware.parse(b"12.0").keeps_raw_records)
-        self.assertTrue(p.Firmware.parse(b"35.0").keeps_raw_records)
-        self.assertFalse(p.Firmware.parse(b"40.0").keeps_raw_records)
+    def test_raw_records_are_kept_everywhere_but_50_to_59(self):
+        for kept in (b"12.0", b"35.0", b"40.0", b"49.9", b"60.0", b"79.1", b"90.11", b"99.0"):
+            self.assertTrue(p.Firmware.parse(kept).keeps_raw_records, kept)
+        for not_kept in (b"50.0", b"53.63", b"59.9"):
+            self.assertFalse(p.Firmware.parse(not_kept).keeps_raw_records, not_kept)
         self.assertFalse(STEEL.keeps_raw_records)
 
     def test_history_command(self):
@@ -501,6 +502,7 @@ class ProbeTest(unittest.TestCase):
         self.assertIn("error", report["schedule"])
         self.assertNotIn(p.SIPS, client.read_log)
         self.assertNotIn(p.FIRMWARE_UPDATE, client.read_log)
+        self.assertNotIn(p.FIRMWARE_UPDATE_SMP, client.read_log)
         self.assertEqual(client.writes, [])
 
     def test_serial_is_never_reported(self):

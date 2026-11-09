@@ -11,7 +11,8 @@ cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer
 > in range, has read real sips with plausible times and amounts, makes the bottle glow with Find, and
 > has set glow reminders that fired on time with nothing connected. Calibration hasn't been shown to
 > work on any bottle.
-> No other bottle has been tried. Read
+> A second bottle, a 946 mL Pro with firmware 90.11, has connected and synced straight out of the box,
+> never set up with the app, but hasn't had a sip read yet. Read
 > [what it writes to your bottle](docs/what-it-writes.md) before you install it.
 
 The point of publishing it is so other owners can report their bottles and get them working. If
@@ -126,16 +127,25 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
 | Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked | Works | Untested |
+| Pro, 946 mL | 90.11 | Works, never set up with the app | None read yet | Untested | Reads a value, only seen on the charger | Untested | Untested |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
 | Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |
 | Firmware 100 and up | | Untested | Refused | Refused | Refused | Untested | Untested |
 
+**Every bottle but the Steel's family** (firmware 50–59) has each sip's record kept exactly as the
+bottle sent it, because no other family has yet been seen reading sips right. If the reading turns
+out wrong, or a bottle that was never calibrated sends sips that work out to nothing, the amounts can
+be worked out again from those records rather than lost.
+
+**The Pro** (firmware 90.11) has no SETTINGS, so `Glow colour` won't change it. It refuses a
+plain read of its weight value, so `Water left` comes from sips and the mark buttons can't get a
+reading. It came uncalibrated out of the box, and whether it needs calibrating before its sips read
+right isn't known yet.
+
 **Older bottles** (firmware 8–19 and 30–39, which includes bottles sold as the Spark 3) are read the
 same way as newer ones, and those below 30 are also sent the acknowledgement they expect after each
-sip. No one has run these with this integration yet, so for them it also keeps each sip's record
-exactly as the bottle sent it. If the reading turns out wrong, the amounts can be worked out again
-from those records rather than lost. Amounts are a straight share of the bottle. The app is believed
+sip. No one has run these with this integration yet. Amounts are a straight share of the bottle. The app is believed
 to adjust readings on these bottles when they're nearly full or nearly empty, so amounts there may
 differ from what the app showed. Most of these bottles hold 592 mL (20 oz), so enter that at setup
 unless yours is different.
@@ -163,7 +173,8 @@ can't be checked by reading them back, so the proof was watching it glow on time
 connected, at minutes the app had never been set to. A schedule set by the app can stay on the
 bottle, so a reminder at a time the app also used proves nothing.
 
-The supported ranges come from reading the protocol. Only 53.x has been run. Yours can change that:
+The supported ranges come from reading the protocol. Only 53.x has had sips read, and 90.11 has
+connected. Yours can change that:
 [report your bottle](CONTRIBUTING.md#report-your-bottle).
 
 To find your firmware version, run the probe below. You don't need to read any sips.

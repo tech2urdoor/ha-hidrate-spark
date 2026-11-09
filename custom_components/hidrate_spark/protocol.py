@@ -24,10 +24,12 @@ GLOW_NOW = "a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0"
 RUNNING_TOTAL = "6ac24e8b-056c-4077-8221-8f816ade71e6"
 WEIGHT = "1807a063-4e2d-4636-981a-35e93d1c7b94"
 FIRMWARE_UPDATE = "00060001-f8ce-11e4-abf4-0002a5d5c51b"
+# The standard Zephyr update channel (SMP). Firmware 90.11 has this instead of FIRMWARE_UPDATE.
+FIRMWARE_UPDATE_SMP = "da2e7828-fbce-4e01-ae9e-261174997c48"
 
 # Writing to these can clear the bottle's total, change its size, or start a firmware update.
 # Nothing in this integration writes to them, and a test holds it to that.
-NEVER_WRITE = frozenset({CAPACITY, RUNNING_TOTAL, FIRMWARE_UPDATE})
+NEVER_WRITE = frozenset({CAPACITY, RUNNING_TOTAL, FIRMWARE_UPDATE, FIRMWARE_UPDATE_SMP})
 
 LIGHTS = {
     "high": 0xB4,
@@ -104,11 +106,12 @@ class Firmware:
 
     @property
     def keeps_raw_records(self) -> bool:
-        """No bottle below 40 has been run with this integration, so its records are kept whole.
+        """Records are kept whole on every family not yet seen to read sips right, which is all but 50 to 59.
 
-        If their layout turns out to differ, the amounts can be worked out again from what was kept.
+        If a layout turns out to differ, or a bottle that was never calibrated sends a sip that works
+        out to nothing, the amounts can be worked out again from what was kept.
         """
-        return self.major < 40
+        return not 50 <= self.major < 60
 
     @property
     def can_set_colour(self) -> bool:

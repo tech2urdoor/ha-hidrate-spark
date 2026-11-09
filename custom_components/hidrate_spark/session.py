@@ -39,7 +39,7 @@ WEIGHT_GAP_SECONDS = 1.0
 WEIGHT_STILL = 10
 
 # Characteristics that are safe to read. SIPS isn't here, because it hands over sips, and
-# FIRMWARE_UPDATE isn't, because nothing here has business touching it.
+# neither firmware update channel is, because nothing here has business touching them.
 PROBE_READS = {
     "firmware": FIRMWARE_REVISION,
     "serial": SERIAL_NUMBER,

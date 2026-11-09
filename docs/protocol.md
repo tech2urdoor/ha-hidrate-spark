@@ -8,9 +8,11 @@ authority on the bytes. If this page and that file disagree, the file wins and t
 for the sole purpose of making that bottle work without the app. These are facts about how the
 bottle communicates. This repository holds no code, text or artwork from Hidrate.
 
-**How far to trust it.** One bottle has been run so far, with firmware 53.63. Points marked *Seen*
-were observed on it. Everything else comes from reading how the app behaves, and could be wrong for
-your bottle. The [compatibility table](../README.md#bottle-compatibility) has the overall picture.
+**How far to trust it.** Two bottles have been run. One, with firmware 53.63, has been run for days.
+The other, a 946 mL Pro with firmware 90.11, has connected, synced and been probed, but hasn't
+handed over a sip yet. Points marked *Seen* were observed on one of them, and say which. Everything
+else comes from reading how the app behaves, and could be wrong for your bottle. The
+[compatibility table](../README.md#bottle-compatibility) has the overall picture.
 
 The names in capitals are this project's own labels, or Bluetooth's standard names.
 
@@ -24,7 +26,8 @@ the weight characteristic on firmware 80.18. No code from any of them is used he
 ## Finding the bottle
 
 - It advertises the service `45855422-6565-4cd7-a2a9-fe8af41b85e8`, under a name made of `h2o` and
-  four hex digits.
+  five hex digits. *Seen:* on 90.11 the name in some adverts is padded with zero bytes after the
+  digits. Home Assistant still matched it and offered the bottle by itself.
 - Its adverts carry no manufacturer or service data, so nothing can be learned by listening. Every
   reading needs a real connection.
 - One bottle has been seen advertising a second identity at about the same moments: a different
@@ -36,6 +39,8 @@ the weight characteristic on firmware 80.18. No code from any of them is used he
 - The bottle takes one connection at a time. While a phone holds it, it stops advertising and a
   proxy can't reach it.
 - *Seen:* it needs no pairing or bonding. A Bluetooth proxy connects straight to it.
+- *Seen:* on 90.11 this held for a bottle straight out of the box, never set up with the app or an
+  account. It connected, synced and was probed with nothing else ever having touched it.
 
 ## Characteristics
 
@@ -44,16 +49,17 @@ the weight characteristic on firmware 80.18. No code from any of them is used he
 | FIRMWARE_REVISION | `00002a26-0000-1000-8000-00805f9b34fb` | Firmware version | Reads |
 | SERIAL_NUMBER | `00002a25-0000-1000-8000-00805f9b34fb` | Serial number | Reads |
 | BATTERY_LEVEL | `00002a19-0000-1000-8000-00805f9b34fb` | Battery percent | Reads |
-| HARDWARE_REVISION | `00002a27-0000-1000-8000-00805f9b34fb` | Standard hardware revision slot. *Seen:* absent on 53.63 | Reads in the probe |
+| HARDWARE_REVISION | `00002a27-0000-1000-8000-00805f9b34fb` | Standard hardware revision slot. *Seen:* absent on 53.63, present but empty on 90.11 | Reads in the probe |
 | SIPS | `016e11b1-6c8a-4074-9e5a-076053f93784` | Handing over sips | Notifications and writes |
-| COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration | Writes, and reads in the probe |
-| SCHEDULE | `b44b03f0-b850-4090-86eb-72863fb3618d` | Commands: glow schedule, clock. *Seen:* reads back as zeros on 53.63 | Writes, and reads in the probe |
+| COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration. *Seen:* on 90.11 a read returned `88200000` | Writes, and reads in the probe |
+| SCHEDULE | `b44b03f0-b850-4090-86eb-72863fb3618d` | Commands: glow schedule, clock. *Seen:* reads back as zeros on 53.63. On 90.11 it's write-only, and a read is refused | Writes, and reads in the probe |
 | GLOW_NOW | `a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0` | Make it glow now | Writes |
-| SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL | Reads in the probe. Writes only when you change the glow colour |
-| CAPACITY | `316c4914-1f59-462e-af06-185418674c0c` | Size. *Seen:* absent on 53.63 | Reads in the probe, **never writes** |
-| RUNNING_TOTAL | `6ac24e8b-056c-4077-8221-8f816ade71e6` | Running total | Reads in the probe, **never writes** |
-| WEIGHT | `1807a063-4e2d-4636-981a-35e93d1c7b94` | A live weight reading. *Seen on 53.63:* a plain read returns 22 bytes. The first two are one big-endian number that follows the water, and the rest didn't change at any level. See [the weight value](#the-weight-value) | Read at each sync, and when a mark button is pressed |
-| FIRMWARE_UPDATE | `00060001-f8ce-11e4-abf4-0002a5d5c51b` | Firmware updates | **Never touches** |
+| SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL. Absent on 90.11 | Reads in the probe. Writes only when you change the glow colour |
+| CAPACITY | `316c4914-1f59-462e-af06-185418674c0c` | Size. *Seen:* absent on 53.63. On 90.11, straight out of the box, it read six zero bytes | Reads in the probe, **never writes** |
+| RUNNING_TOTAL | `6ac24e8b-056c-4077-8221-8f816ade71e6` | Running total. *Seen:* absent on 90.11 | Reads in the probe, **never writes** |
+| WEIGHT | `1807a063-4e2d-4636-981a-35e93d1c7b94` | A live weight reading. *Seen on 53.63:* a plain read returns 22 bytes. The first two are one big-endian number that follows the water, and the rest didn't change at any level. *Seen on 90.11:* notifications only, and a plain read is refused. See [the weight value](#the-weight-value) | Read at each sync, and when a mark button is pressed |
+| FIRMWARE_UPDATE | `00060001-f8ce-11e4-abf4-0002a5d5c51b` | Firmware updates. *Seen:* absent on 90.11 | **Never touches** |
+| FIRMWARE_UPDATE_SMP | `da2e7828-fbce-4e01-ae9e-261174997c48` | Firmware updates through the standard Zephyr update service, `8d53dc1d-1db7-4cd3-868b-8a527460aa84`. *Seen:* on 90.11 | **Never touches** |
 
 ## Firmware decides the details
 
@@ -66,17 +72,19 @@ hardware family.
 | 8 to 19 | Older bottles that wait for `0x33` after each sip | Attempts it, and keeps each record whole. Never run |
 | 20 to 29 | A different product | Refuses before reading a sip |
 | 30 to 39 | Older bottles, read like newer ones | Attempts it, and keeps each record whole. Never run |
-| 40 to 79 | Believed to be Cypress chips. The app treats 50 to 59 as Steel bottles | Attempts it. Only 53.63 has been run |
-| 80 to 99 | Nordic chips | Attempts it |
+| 40 to 79 | Believed to be Cypress chips. The app treats 50 to 59 as Steel bottles | Attempts it. Only 53.63 has been run. Keeps each record whole, except on 50 to 59 |
+| 80 to 99 | Nordic chips. The app treats 90 to 99 as its 946 mL Pro | Attempts it, and keeps each record whole. 90.11 has connected and synced, with no sip read yet |
 | 100 to 110 | Telink chips, which work differently | Refuses before reading a sip |
 | 111 and up | Unknown | Refuses before reading a sip |
 
 The app treats a Steel differently only when reading and writing SETTINGS, which this integration
 writes only to change the glow colour, so the reminder bytes are the same.
 
-The refusals are deliberate. Sips are one-shot, so decoding them on a guess could lose them. For
-the older bottles the integration does attempt, it saves each notification exactly as received
-alongside the sip, so a wrong reading can be redone later from the saved bytes.
+The refusals are deliberate. Sips are one-shot, so decoding them on a guess could lose them. On
+every family it attempts except 50 to 59, the only one seen reading sips right, it saves each
+notification exactly as received alongside the sip, so a wrong reading can be redone later from the
+saved bytes. That includes a sip that works out to nothing, which would otherwise be dropped, as it
+might be on a bottle that has never been calibrated.
 
 ## Reading sips
 
@@ -217,6 +225,8 @@ Reports on any of these are very welcome.
 
 - How many sips a bottle holds while it's away from home.
 - Whether sips are one-shot on firmware other than 53.63.
+- Whether a bottle that has never been calibrated sends a usable sensor minimum and maximum, and so
+  usable amounts. The app offers calibration straight after setup.
 - Whether a reminder stays quiet once the day's total is ahead of its row. Only a glow when behind has been seen.
 - What makes the bottle glow blue on a refill. *Seen:* on 53.63 it did so with nothing connected, so
   it's the bottle's own firmware and nothing has to ask for it.
@@ -244,3 +254,7 @@ works from two readings the owner marks.
 
 Straight after coming off the charger the value fell 7 units in 17 minutes with the water untouched, about 5 mL, and
 then held. With the base on its charger it read `86 47`, which is outside the range above. Tilted hasn't been tried.
+
+On firmware 90.11 a plain read of WEIGHT is refused, so the integration gets no reading at a sync and `Water left`
+comes from sips, and the mark buttons can't get a reading either. Its notifications do arrive: 10 seconds of listening
+on its charger heard one, two bytes, `77 74`. Whether that fits the 80.18 notes above is unknown.
