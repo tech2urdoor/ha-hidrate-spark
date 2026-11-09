@@ -6,7 +6,7 @@ Use your HidrateSpark smart bottle from Home Assistant, over Bluetooth, with no 
 cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer).
 
 > [!WARNING]
-> **Status: early, and proven on one bottle only.** On a Steel with firmware 53.63, installed through
+> **Status: early, and run on two bottles only.** On a Steel with firmware 53.63, installed through
 > HACS, it connects through a Bluetooth proxy with no pairing, syncs by itself while the bottle stays
 > in range, has read real sips with plausible times and amounts, makes the bottle glow with Find, and
 > has set glow reminders that fired on time with nothing connected.
