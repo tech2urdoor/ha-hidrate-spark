@@ -16,7 +16,7 @@ UUIDs and byte layouts are in [protocol.md](protocol.md).
 | SIPS | `0x33` after each sip, on firmware below 30 only, and only once the sip is saved | Those bottles wait for it before sending the next sip |
 
 Nothing else is written unless you turn reminders on. This is still a real change to the bottle: a sip
-handed over is gone from it. On the one bottle tested, a second read straight after a sip got
+handed over is gone from it. On both bottles tested, a second read straight after a sip got
 nothing. Each sip is saved in Home Assistant the moment it arrives.
 
 ## Every sync, only if you turn on "Send glow reminders to the bottle"

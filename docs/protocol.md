@@ -9,8 +9,8 @@ for the sole purpose of making that bottle work without the app. These are facts
 bottle communicates. This repository holds no code, text or artwork from Hidrate.
 
 **How far to trust it.** Two bottles have been run. One, with firmware 53.63, has been run for days.
-The other, a 946 mL Pro with firmware 90.11, has connected, synced and been probed, but hasn't
-handed over a sip yet. Points marked *Seen* were observed on one of them, and say which. Everything
+The other, a 946 mL Pro with firmware 90.11, has connected, synced, been probed and calibrated,
+and handed over one measured sip. Points marked *Seen* were observed on one of them, and say which. Everything
 else comes from reading how the app behaves, and could be wrong for your bottle. The
 [compatibility table](../README.md#bottle-compatibility) has the overall picture.
 
@@ -51,7 +51,7 @@ the weight characteristic on firmware 80.18. No code from any of them is used he
 | BATTERY_LEVEL | `00002a19-0000-1000-8000-00805f9b34fb` | Battery percent | Reads |
 | HARDWARE_REVISION | `00002a27-0000-1000-8000-00805f9b34fb` | Standard hardware revision slot. *Seen:* absent on 53.63, present but empty on 90.11 | Reads in the probe |
 | SIPS | `016e11b1-6c8a-4074-9e5a-076053f93784` | Handing over sips | Notifications and writes |
-| COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration. *Seen:* on 90.11 a read returned `88200000` | Writes, and reads in the probe |
+| COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration. *Seen:* on 90.11 a read returned `88200000` out of the box on the charger, `88000000` after calibrating empty and `80000000` after calibrating full. What the bytes mean isn't known | Writes, and reads in the probe |
 | SCHEDULE | `b44b03f0-b850-4090-86eb-72863fb3618d` | Commands: glow schedule, clock. *Seen:* reads back as zeros on 53.63. On 90.11 it's write-only, and a read is refused | Writes, and reads in the probe |
 | GLOW_NOW | `a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0` | Make it glow now | Writes |
 | SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL. Absent on 90.11 | Reads in the probe. Writes only when you change the glow colour |
@@ -73,7 +73,7 @@ hardware family.
 | 20 to 29 | A different product | Refuses before reading a sip |
 | 30 to 39 | Older bottles, read like newer ones | Attempts it, and keeps each record whole. Never run |
 | 40 to 79 | Believed to be Cypress chips. The app treats 50 to 59 as Steel bottles | Attempts it. Only 53.63 has been run. Keeps each record whole, except on 50 to 59 |
-| 80 to 99 | Nordic chips. The app treats 90 to 99 as its 946 mL Pro | Attempts it, and keeps each record whole. 90.11 has connected and synced, with no sip read yet |
+| 80 to 99 | Nordic chips. The app treats 90 to 99 as its 946 mL Pro | Attempts it, and keeps each record whole. 90.11 has read one measured sip close to right |
 | 100 to 110 | Telink chips, which work differently | Refuses before reading a sip |
 | 111 and up | Unknown | Refuses before reading a sip |
 
@@ -81,7 +81,7 @@ The app treats a Steel differently only when reading and writing SETTINGS, which
 writes only to change the glow colour, so the reminder bytes are the same.
 
 The refusals are deliberate. Sips are one-shot, so decoding them on a guess could lose them. On
-every family it attempts except 50 to 59, the only one seen reading sips right, it saves each
+every family it attempts except 50 to 59, the only one seen reading sips over days, it saves each
 notification exactly as received alongside the sip, so a wrong reading can be redone later from the
 saved bytes. That includes a sip that works out to nothing, which would otherwise be dropped, as it
 might be on a bottle that has never been calibrated.
@@ -100,7 +100,9 @@ might be on a bottle that has never been calibrated.
    integration also gives up after three minutes.
 
 *Seen:* on 53.63 a real sip arrived with the right time and a plausible amount, and a second sync
-straight after got nothing. So a sip is gone from the bottle once it's been read.
+straight after got nothing. So a sip is gone from the bottle once it's been read. On 90.11, just
+calibrated, 250 mL poured out by measuring cup read as 235 mL with the right time, and a second sync
+straight after got nothing there too.
 
 Telink bottles are still refused: they're believed to differ in more than the acknowledgement.
 Bottles from major version 8 to 39 are believed to have their amounts adjusted by the app near full
@@ -122,6 +124,9 @@ Little-endian, 16 bytes:
 | 10–11 | u16 | Sensor maximum |
 | 12–13 | u16 | Level when the sip started |
 | 14–15 | u16 | Level when the sip stopped |
+
+*Seen:* on 90.11 the notification is 20 bytes: these 16, then four zero bytes. Byte 1 was the sip as
+a whole percent of the bottle, rounded down, and bytes 2–3 held the same number.
 
 ### Turning a sip into millilitres
 
@@ -157,6 +162,9 @@ sends. See [what-it-writes.md](what-it-writes.md) for when and why.
 | COMMANDS | `40` | Calibrate empty, major version 50 and up |
 | COMMANDS | `a0` | Calibrate empty, below major version 50 |
 | COMMANDS | `41` | Calibrate full |
+
+*Seen:* on 90.11, straight out of the box, `40` with the bottle empty and then `41` with it full were
+both accepted, and the sip after started exactly at the sensor maximum.
 | SCHEDULE | `93 3d` / `92` | Glow when the goal is reached: on, with its strobe value / off |
 | SCHEDULE | `77 00 00 00` + u32 little-endian | Seconds since midnight |
 | SCHEDULE | 8-byte row, below | One row of the schedule |
@@ -224,7 +232,7 @@ in a schedule row.
 Reports on any of these are very welcome.
 
 - How many sips a bottle holds while it's away from home.
-- Whether sips are one-shot on firmware other than 53.63.
+- Whether sips are one-shot on firmware other than 53.63 and 90.11.
 - Whether a bottle that has never been calibrated sends a usable sensor minimum and maximum, and so
   usable amounts. The app offers calibration straight after setup.
 - Whether a reminder stays quiet once the day's total is ahead of its row. Only a glow when behind has been seen.
