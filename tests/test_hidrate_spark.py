@@ -387,6 +387,58 @@ class SyncTest(unittest.TestCase):
         self.assertIsNone(self.run_sync(client)[0].battery)
 
 
+class ChargeTest(unittest.TestCase):
+    """COMMANDS reads from real bottles: 53.63 and 90.11 on their chargers, and 90.11 off it."""
+
+    def test_the_reads_seen_on_real_bottles(self):
+        self.assertEqual(p.charge_state(bytes.fromhex("80a00000")), "charging")  # 53.63 on the charger
+        self.assertEqual(p.charge_state(bytes.fromhex("80200000")), "charging")  # 90.11 on the charger
+        self.assertEqual(p.charge_state(bytes.fromhex("88200000")), "charging")  # 90.11 before calibrating
+        self.assertEqual(p.charge_state(bytes.fromhex("80000000")), "not_charging")  # 90.11 off the charger
+
+    def test_charged_and_charging_wins_over_it(self):
+        self.assertEqual(p.charge_state(bytes.fromhex("80100000")), "charged")
+        self.assertEqual(p.charge_state(bytes.fromhex("80300000")), "charging")
+
+    def test_other_bits_are_ignored(self):
+        self.assertEqual(p.charge_state(bytes.fromhex("ffcf")), "not_charging")
+
+    def test_too_short_is_unknown(self):
+        self.assertIsNone(p.charge_state(b""))
+        self.assertIsNone(p.charge_state(b"\x80"))
+
+    def test_on_the_charger_means_charging_or_charged(self):
+        self.assertEqual(p.ON_CHARGER, {"charging", "charged"})
+        self.assertLessEqual(p.ON_CHARGER, set(p.CHARGE_STATES))
+
+    def run_sync(self, client, glow=None):
+        return asyncio.run(
+            s.sync(client, size_ml=621, on_sip=lambda pk, at: None, total_today=lambda: 0.0,
+                   now_seconds=lambda: 0, glow=glow, idle_seconds=0.01)
+        )
+
+    def test_a_sync_reads_it_and_writes_nothing_for_it(self):
+        client = FakeClient(notifications=[sip_packet(0)])
+        client.reads[p.COMMANDS] = bytes.fromhex("80a00000")
+        result = self.run_sync(client)
+        self.assertEqual(result.charge, "charging")
+        self.assertEqual(client.writes, [(p.SIPS, b"\x57")])
+
+    def test_it_is_read_after_the_sips(self):
+        client = FakeClient(notifications=[sip_packet(0)])
+        client.reads[p.COMMANDS] = bytes.fromhex("80200000")
+        self.run_sync(client)
+        self.assertGreater(client.read_log.index(p.COMMANDS), client.read_log.index(p.FIRMWARE_REVISION))
+        self.assertLess(client.read_log.index(p.BATTERY_LEVEL), client.read_log.index(p.COMMANDS))
+
+    def test_an_unreadable_status_does_not_stop_a_sync(self):
+        client = FakeClient(notifications=[sip_packet(0)])
+        result = self.run_sync(client, glow=GLOW)
+        self.assertIsNone(result.charge)
+        self.assertEqual(result.battery, 77)
+        self.assertEqual(len(client.writes), 18)
+
+
 class WeightTest(unittest.TestCase):
     """Bytes as read from a Steel on 53.63. The tail stayed the same at every level."""
 

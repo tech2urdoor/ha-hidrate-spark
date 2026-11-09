@@ -36,6 +36,9 @@ GOAL_RANGE = (100, 10000, 50)
 FREQUENCY_RANGE = (0, 720, 5)
 
 RETRY_SECONDS = 300
+# On its charger a connection costs the bottle nothing, so it's checked this often, and lifting it off
+# shows within minutes. Never slower than the bottle's own setting.
+CHARGER_SYNC_SECONDS = 300
 SESSION_TIMEOUT_SECONDS = 240
 # How often to look for a due sync, and how recently the bottle must have been heard to count as in
 # range. The one bottle measured so far advertises about every 2 seconds, so 120 is plenty.

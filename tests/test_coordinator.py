@@ -16,6 +16,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import custom_components.hidrate_spark as integration  # noqa: E402
+from custom_components.hidrate_spark import binary_sensor as binary_sensor_platform  # noqa: E402
 from custom_components.hidrate_spark import config_flow  # noqa: E402
 from custom_components.hidrate_spark import coordinator as module  # noqa: E402
 from custom_components.hidrate_spark import number as number_platform  # noqa: E402
@@ -24,6 +25,7 @@ from custom_components.hidrate_spark import sensor as sensor_platform  # noqa: E
 from custom_components.hidrate_spark import switch as switch_platform  # noqa: E402
 from custom_components.hidrate_spark import time as time_platform  # noqa: E402
 from custom_components.hidrate_spark.const import (  # noqa: E402
+    CHARGER_SYNC_SECONDS,
     DEFAULTS,
     DUE_CHECK_SECONDS,
     HEARD_WITHIN_SECONDS,
@@ -178,6 +180,77 @@ class UnsupportedTest(Base):
     def test_a_connection_failure_still_retries_sooner(self):
         self.sync_failing_with(module.BleakError("no"))
         self.coordinator._last_attempt = time.monotonic() - RETRY_SECONDS - 1
+        self.assertTrue(self.coordinator._due())
+
+
+class ChargingTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.coordinator._store.async_save = mock.AsyncMock()
+        self.coordinator._update_device = mock.Mock()
+
+    def sync_reading(self, charge):
+        result = module.session.SyncResult(
+            module.protocol.Firmware.parse(b"90.11"), "S", 100, 0, None, charge
+        )
+        with mock.patch.object(self.coordinator, "_session", mock.AsyncMock(return_value=result)):
+            asyncio.run(self.coordinator.async_sync())
+
+    def entities(self):
+        binary = binary_sensor_platform.HidrateChargingSensor(self.coordinator, binary_sensor_platform.CHARGING)
+        description = next(s for s in sensor_platform.SENSORS if s.key == "battery_state")
+        return binary, sensor_platform.HidrateSensor(self.coordinator, description)
+
+    def test_unknown_until_a_sync_reads_it(self):
+        binary, state = self.entities()
+        self.assertIsNone(binary.is_on)
+        self.assertIsNone(state.native_value)
+
+    def test_each_state_reaches_both_entities(self):
+        binary, state = self.entities()
+        for charge, on in (("charging", True), ("charged", False), ("not_charging", False)):
+            self.sync_reading(charge)
+            self.assertEqual((binary.is_on, state.native_value), (on, charge))
+            self.assertEqual(self.coordinator._as_dict()["charge"], charge)
+
+    def test_every_state_is_an_option_of_the_sensor(self):
+        _, state = self.entities()
+        self.assertEqual(state.options, list(module.protocol.CHARGE_STATES))
+
+    def test_an_unreadable_status_keeps_the_last_one(self):
+        self.sync_reading("charging")
+        self.sync_reading(None)
+        self.assertEqual(self.coordinator.charge, "charging")
+
+    def test_it_survives_a_restart(self):
+        self.sync_reading("charged")
+        saved = self.coordinator._as_dict()
+        with mock.patch.object(module, "Store"):
+            again = module.HidrateCoordinator(mock.Mock(), self.entry)
+        again._store.async_load = mock.AsyncMock(return_value=saved)
+        asyncio.run(again.async_load())
+        self.assertEqual(again.charge, "charged")
+
+    def test_on_the_charger_it_syncs_sooner(self):
+        for charge in ("charging", "charged"):
+            self.coordinator.charge = charge
+            self.last_attempt(CHARGER_SYNC_SECONDS + 1)
+            self.assertTrue(self.coordinator._due(), charge)
+            self.last_attempt(CHARGER_SYNC_SECONDS - 10)
+            self.assertFalse(self.coordinator._due(), charge)
+
+    def test_off_the_charger_it_waits_the_normal_interval(self):
+        for charge in ("not_charging", None):
+            self.coordinator.charge = charge
+            self.last_attempt(CHARGER_SYNC_SECONDS + 1)
+            self.assertFalse(self.coordinator._due(), charge)
+            self.last_attempt(THIRTY_MINUTES + 1)
+            self.assertTrue(self.coordinator._due(), charge)
+
+    def test_a_shorter_setting_than_the_charger_check_is_kept(self):
+        self.entry.options = {"sync_minutes": 2}
+        self.coordinator.charge = "charging"
+        self.last_attempt(2 * 60 + 1)
         self.assertTrue(self.coordinator._due())
 
 

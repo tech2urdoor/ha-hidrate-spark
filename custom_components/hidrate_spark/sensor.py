@@ -15,6 +15,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfVolume
 
+from . import protocol
 from .coordinator import HidrateCoordinator
 from .entity import HidrateEntity
 from .sip_log import Refill
@@ -22,7 +23,7 @@ from .sip_log import Refill
 
 @dataclass(frozen=True, kw_only=True)
 class HidrateSensorDescription(SensorEntityDescription):
-    value_fn: Callable[[HidrateCoordinator], float | int | datetime | None]
+    value_fn: Callable[[HidrateCoordinator], float | int | str | datetime | None]
     attrs_fn: Callable[[HidrateCoordinator], dict[str, Any]] | None = None
 
 
@@ -127,6 +128,16 @@ SENSORS = (
         value_fn=lambda c: c.battery,
     ),
     HidrateSensorDescription(
+        # What the bottle says, read at each sync. A better guide on the charger than Battery, which reads 100 there.
+        key="battery_state",
+        name="Battery state",
+        translation_key="battery_state",
+        device_class=SensorDeviceClass.ENUM,
+        options=list(protocol.CHARGE_STATES),
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda c: c.charge,
+    ),
+    HidrateSensorDescription(
         key="last_sync",
         name="Last sync",
         device_class=SensorDeviceClass.TIMESTAMP,
@@ -148,7 +159,7 @@ class HidrateSensor(HidrateEntity, SensorEntity):
     _unrecorded_attributes = frozenset({"daily_totals"})
 
     @property
-    def native_value(self) -> float | int | datetime | None:
+    def native_value(self) -> float | int | str | datetime | None:
         return self.entity_description.value_fn(self.coordinator)
 
     @property

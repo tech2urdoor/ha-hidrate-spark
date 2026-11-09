@@ -25,6 +25,7 @@ from .protocol import (
     GlowSettings,
     Packet,
     acknowledge_command,
+    charge_state,
     colour_settings,
     glow_colour_bytes,
     weight_reading,
@@ -78,6 +79,7 @@ class SyncResult:
     battery: int | None
     packets: int
     weight: int | None = None
+    charge: str | None = None
 
 
 async def read_firmware(client: Any) -> Firmware:
@@ -161,6 +163,14 @@ async def read_weight(client: Any, gap_seconds: float = WEIGHT_GAP_SECONDS) -> i
     return second if second is not None and abs(second - first) <= WEIGHT_STILL else None
 
 
+async def read_charge(client: Any) -> str | None:
+    """Charging, charged or not, from a read of COMMANDS. None if it can't be read."""
+    try:
+        return charge_state(bytes(await client.read_gatt_char(COMMANDS)))
+    except Exception:  # noqa: BLE001 - like the weight, a bonus that must not cost the rest of a sync
+        return None
+
+
 async def sync(
     client: Any,
     *,
@@ -174,7 +184,7 @@ async def sync(
     clock: Callable[[], float] = time.time,
     on_firmware: Callable[[Firmware], None] | None = None,
 ) -> SyncResult:
-    """Sips first, because they matter most; then battery and weight; then the reminders."""
+    """Sips first, because they matter most; then battery, charging and weight; then the reminders."""
     firmware = await read_firmware(client)
     if not firmware.supported:
         raise UnsupportedBottle(f"Firmware {firmware.raw} isn't a kind this integration can read")
@@ -186,11 +196,12 @@ async def sync(
     )
     serial = known_serial or await _read_serial(client)
     battery = await _read_battery(client)
+    charge = await read_charge(client)
     weight = await read_weight(client)
     if glow is not None:
         for uuid, payload in reminder_writes(glow, firmware, size_ml, total_today(), now_seconds()):
             await client.write_gatt_char(uuid, payload)
-    return SyncResult(firmware, serial, battery, packets, weight)
+    return SyncResult(firmware, serial, battery, packets, weight, charge)
 
 
 async def set_colour(client: Any, colour: str) -> None:

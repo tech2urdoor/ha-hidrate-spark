@@ -13,6 +13,7 @@ from .const import DOMAIN
 from .coordinator import HidrateCoordinator
 
 PLATFORMS = [
+    Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.NUMBER,
     Platform.SELECT,

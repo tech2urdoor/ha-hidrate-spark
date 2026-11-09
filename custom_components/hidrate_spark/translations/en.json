@@ -39,6 +39,15 @@
     }
   },
   "entity": {
+    "sensor": {
+      "battery_state": {
+        "state": {
+          "charging": "Charging",
+          "charged": "Charged",
+          "not_charging": "Not charging"
+        }
+      }
+    },
     "select": {
       "glow_light": {
         "state": {

@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from . import protocol, session
 from .const import (
+    CHARGER_SYNC_SECONDS,
     CONF_FREQUENCY_MIN,
     CONF_GLOW_ALWAYS,
     CONF_GLOW_ON_GOAL,
@@ -61,6 +62,8 @@ class HidrateCoordinator:
         self.address: str = entry.data[CONF_ADDRESS]
         self.log = SipLog(dt_util.DEFAULT_TIME_ZONE)
         self.battery: int | None = None
+        # One of protocol.CHARGE_STATES, as of the last sync that could read it.
+        self.charge: str | None = None
         self.firmware: str | None = None
         self.serial: str | None = None
         self.colour: str | None = None
@@ -139,6 +142,7 @@ class HidrateCoordinator:
         data = await self._store.async_load() or {}
         self.log.load(data.get("log", {}))
         self.battery = data.get("battery")
+        self.charge = data.get("charge")
         self.firmware = data.get("firmware")
         self.serial = data.get("serial")
         self.colour = data.get("colour")
@@ -154,6 +158,7 @@ class HidrateCoordinator:
         return {
             "log": self.log.as_dict(),
             "battery": self.battery,
+            "charge": self.charge,
             "firmware": self.firmware,
             "serial": self.serial,
             "colour": self.colour,
@@ -224,6 +229,8 @@ class HidrateCoordinator:
         # Trying again won't change a bottle's firmware, and every try costs it battery.
         settled = self._succeeded or self._unsupported
         wait = int(self.option(CONF_SYNC_MINUTES)) * 60 if settled else RETRY_SECONDS
+        if self._succeeded and self.charge in protocol.ON_CHARGER:
+            wait = min(wait, CHARGER_SYNC_SECONDS)
         return time.monotonic() - self._last_attempt >= wait
 
     async def async_wait_until_idle(self) -> None:
@@ -322,6 +329,8 @@ class HidrateCoordinator:
                 self.serial = result.serial
                 if result.battery is not None:
                     self.battery = result.battery
+                if result.charge is not None:
+                    self.charge = result.charge
                 if result.weight is not None:
                     self.weight = result.weight
                     self.weight_at = dt_util.utcnow()
@@ -329,7 +338,9 @@ class HidrateCoordinator:
                 self.last_error = None
                 self._succeeded = True
                 self._update_device()
-                _LOGGER.debug("Synced: %s sips read, battery %s", result.packets, result.battery)
+                _LOGGER.debug(
+                    "Synced: %s sips read, battery %s, %s", result.packets, result.battery, result.charge
+                )
             finally:
                 self.log.prune(dt_util.utcnow())
                 await self._store.async_save(self._as_dict())

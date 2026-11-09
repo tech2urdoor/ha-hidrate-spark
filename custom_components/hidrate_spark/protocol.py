@@ -66,6 +66,14 @@ GLOW_COLOUR_LENGTH = 4
 # Sent after each sip by bottles that wait to be told a sip arrived before sending the next.
 ACKNOWLEDGE_SIP = 0x33
 
+# Byte 1 of a COMMANDS read. CHARGING was seen set on 53.63 and 90.11 on their chargers and clear on
+# 90.11 off it. CHARGED is believed to mean the charge is complete, and hasn't been seen yet.
+CHARGING_BIT = 0x20
+CHARGED_BIT = 0x10
+CHARGE_STATES = ("charging", "charged", "not_charging")
+# Where a bottle reporting these is sitting: on its charger, so a connection costs it nothing.
+ON_CHARGER = frozenset({"charging", "charged"})
+
 SECONDS_IN_DAY = 86400
 SCHEDULE_SLOTS = 12
 
@@ -176,6 +184,18 @@ def parse_packet(data: bytes) -> Packet:
         return Packet(remaining=data[0] if data else 0)
     remaining, unused, seconds, low, high, start, stop = struct.unpack_from("<BxHiHHHH", data)
     return Packet(remaining, True, unused, seconds, low, high, start, stop, data)
+
+
+def charge_state(data: bytes) -> str | None:
+    """One of CHARGE_STATES, from a COMMANDS read. Charging wins if both bits are set. None if too short."""
+    data = bytes(data)
+    if len(data) < 2:
+        return None
+    if data[1] & CHARGING_BIT:
+        return "charging"
+    if data[1] & CHARGED_BIT:
+        return "charged"
+    return "not_charging"
 
 
 def weight_reading(data: bytes) -> int | None:

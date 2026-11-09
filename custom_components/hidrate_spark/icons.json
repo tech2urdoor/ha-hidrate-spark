@@ -1,0 +1,19 @@
+{
+  "entity": {
+    "sensor": {
+      "battery_state": {
+        "default": "mdi:battery-unknown",
+        "state": {
+          "charging": "mdi:battery-charging",
+          "charged": "mdi:battery-charging-100",
+          "not_charging": "mdi:battery"
+        }
+      }
+    }
+  },
+  "services": {
+    "probe": {
+      "service": "mdi:magnify-scan"
+    }
+  }
+}
