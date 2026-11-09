@@ -111,7 +111,7 @@ in range. While reminders are off, changing the others sends nothing to the bott
 | Send glow reminders to the bottle | Off | *Control.* Off means the bottle is only read. Turning it on replaces the bottle's schedule |
 | Daily goal | 2000 mL | *Control* |
 | Wake time, Bedtime | 07:00, 22:00 | *Control.* Reminders are spaced between these |
-| Minutes between reminders | 60 | *Control.* 0 for none. The bottle holds 12 at most, counted from wake time, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
+| Minutes between reminders | 60 | *Control.* 0 for none. The first comes one interval after wake time. The bottle holds 12 at most, and any after that are dropped. The defaults give 15, so reminders stop at 19:00. Every 75 minutes covers that day |
 | Glow | High | *Control.* High, medium, low, short pulse, short white pulse, pulse effect, spin effect, flash effect. Used for reminders and Find. An effect repeats by itself from one press of Find: the flash effect plays three times in a row |
 | Glow at every reminder | Off | *Control.* Otherwise only when you're behind |
 | Glow on each sip | On | |
