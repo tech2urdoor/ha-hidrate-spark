@@ -159,7 +159,7 @@ sends. See [what-it-writes.md](what-it-writes.md) for when and why.
 |---|---|---|
 | COMMANDS | `21 hi lo` | Today's total, in hundredths of a reference bottle: 592 mL, or 710 mL on major version 7 and below |
 | COMMANDS | `22 hi lo` | Goal, in hundredths of this bottle's size |
-| COMMANDS | `b1` / `b0` | Glow on each sip: on / off |
+| COMMANDS | `b1` / `b0` | Glow on each sip: on / off. *Seen:* on 90.11 the sip glow showed only once GLOW_COLOUR held a colour |
 | COMMANDS | `40` | Calibrate empty, major version 50 and up |
 | COMMANDS | `a0` | Calibrate empty, below major version 50 |
 | COMMANDS | `41` | Calibrate full |
