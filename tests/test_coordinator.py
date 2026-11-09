@@ -591,12 +591,12 @@ class BermudaSetupTest(unittest.TestCase):
         self.assertNotIn("bermuda", result["data_schema"]({}))
 
     def test_ticked_adds_it_to_what_bermuda_already_tracks(self):
-        hass = self.hass([self.bermuda_entry(["11:22:33:44:55:66"])], [self.FORM, self.DONE])
+        hass = self.hass([self.bermuda_entry(["12:34:56:78:9A:BC"])], [self.FORM, self.DONE])
         result = asyncio.run(self.flow(hass).async_step_confirm({"size_ml": 621, "bermuda": True}))
         self.assertEqual(result["type"], "create_entry")
         self.assertEqual(result["options"], {"size_ml": 621})
         last = hass.config_entries.options.async_configure.call_args_list[-1]
-        self.assertEqual(last.args, ("f1", {"configured_devices": ["11:22:33:44:55:66", ADDRESS]}))
+        self.assertEqual(last.args, ("f1", {"configured_devices": ["12:34:56:78:9A:BC", ADDRESS]}))
 
     def test_unticked_leaves_bermuda_alone(self):
         hass = self.hass([self.bermuda_entry()])
