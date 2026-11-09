@@ -565,22 +565,41 @@ class ColourBytesTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 p.colour_settings(bad, "Blue")
 
-    def test_only_the_family_seen_can_change_colour(self):
-        for raw, allowed in ((b"49.9", False), (b"50.0", True), (b"59.9", True), (b"60.0", False), (b"85.3", False)):
+    def test_only_the_families_with_a_known_place_can_change_colour(self):
+        cases = (
+            (b"49.9", False), (b"50.0", True), (b"59.9", True), (b"60.0", False), (b"79.9", False),
+            (b"80.0", True), (b"90.11", True), (b"99.9", True), (b"100.0", False),
+        )
+        for raw, allowed in cases:
             self.assertEqual(p.Firmware.parse(raw).can_set_colour, allowed, raw)
+
+    def test_nordic_glow_colour_is_the_two_colours_alone(self):
+        self.assertEqual(p.glow_colour_bytes(bytes(4), "Aqua").hex(), "ff07e107")
+        self.assertEqual(p.glow_colour_bytes(bytes(4), "Blue").hex(), "7f07bf03")
+        # The same four bytes the 50 to 59 family keeps after its size.
+        for colour in p.GLOW_COLOURS:
+            self.assertEqual(p.glow_colour_bytes(bytes(4), colour), p.colour_settings(self.FACTORY, colour)[2:])
+
+    def test_nordic_glow_colour_of_any_other_length_is_refused(self):
+        for bad in (b"", bytes(3), bytes(5), bytes(6)):
+            with self.assertRaises(ValueError):
+                p.glow_colour_bytes(bad, "Aqua")
 
 
 class EchoingClient(FakeClient):
-    """Keeps what's written to SETTINGS, as a real bottle would, unless told to ignore it."""
+    """Keeps what's written to SETTINGS and GLOW_COLOUR, as a real bottle would, unless told to ignore it."""
 
-    def __init__(self, firmware=b"53.63", settings=b"\x6d\x02\0\0\0\0", ignore_writes=False):
+    def __init__(
+        self, firmware=b"53.63", settings=b"\x6d\x02\0\0\0\0", glow_colour=bytes(4), ignore_writes=False
+    ):
         super().__init__(firmware=firmware)
         self.reads[p.SETTINGS] = settings
+        self.reads[p.GLOW_COLOUR] = glow_colour
         self.ignore_writes = ignore_writes
 
     async def write_gatt_char(self, uuid, data):
         await super().write_gatt_char(uuid, data)
-        if uuid == p.SETTINGS and not self.ignore_writes:
+        if uuid in (p.SETTINGS, p.GLOW_COLOUR) and not self.ignore_writes:
             self.reads[uuid] = bytes(data)
 
 
@@ -601,11 +620,41 @@ class SetColourTest(unittest.TestCase):
             asyncio.run(s.set_colour(EchoingClient(ignore_writes=True), "Blue"))
 
     def test_other_firmware_is_refused_before_anything_is_read_or_written(self):
-        client = EchoingClient(firmware=b"85.3")
-        with self.assertRaises(s.ColourNotSet):
-            asyncio.run(s.set_colour(client, "Blue"))
-        self.assertEqual(client.writes, [])
+        for firmware in (b"60.0", b"40.0", b"105.0"):
+            client = EchoingClient(firmware=firmware)
+            with self.assertRaises(s.ColourNotSet):
+                asyncio.run(s.set_colour(client, "Blue"))
+            self.assertEqual(client.writes, [])
+            self.assertNotIn(p.SETTINGS, client.read_log)
+            self.assertNotIn(p.GLOW_COLOUR, client.read_log)
+
+    def test_nordic_writes_glow_colour_once_and_reads_it_back(self):
+        client = EchoingClient(firmware=b"90.11")
+        asyncio.run(s.set_colour(client, "Aqua"))
+        self.assertEqual(client.writes, [(p.GLOW_COLOUR, bytes.fromhex("ff07e107"))])
+        self.assertEqual(client.read_log[-1], p.GLOW_COLOUR)
         self.assertNotIn(p.SETTINGS, client.read_log)
+
+    def test_nordic_colour_already_set_writes_nothing(self):
+        client = EchoingClient(firmware=b"90.11", glow_colour=bytes.fromhex("ff07e107"))
+        asyncio.run(s.set_colour(client, "Aqua"))
+        self.assertEqual(client.writes, [])
+
+    def test_nordic_write_that_does_not_read_back_is_an_error(self):
+        with self.assertRaises(s.ColourNotSet):
+            asyncio.run(s.set_colour(EchoingClient(firmware=b"90.11", ignore_writes=True), "Aqua"))
+
+    def test_nordic_unexpected_length_is_refused_without_writing(self):
+        client = EchoingClient(firmware=b"90.11", glow_colour=bytes(6))
+        with self.assertRaises(s.ColourNotSet):
+            asyncio.run(s.set_colour(client, "Aqua"))
+        self.assertEqual(client.writes, [])
+
+    def test_nordic_takes_no_sips(self):
+        client = EchoingClient(firmware=b"90.11")
+        asyncio.run(s.set_colour(client, "Aqua"))
+        self.assertNotIn(p.SIPS, [uuid for uuid, _ in client.writes])
+        self.assertIsNone(client.callback)
 
     def test_an_unexpected_layout_is_refused_without_writing(self):
         client = EchoingClient(settings=b"\x6d\x02\0\0")
@@ -621,43 +670,57 @@ class SetColourTest(unittest.TestCase):
 
 
 class SyncLeavesSettingsAloneTest(unittest.TestCase):
-    def test_a_sync_neither_reads_nor_writes_settings(self):
-        client = EchoingClient()
-        glow = p.GlowSettings(goal_ml=2000, wake_s=7 * 3600, sleep_s=22 * 3600)
-        asyncio.run(
-            s.sync(
-                client,
-                size_ml=621,
-                on_sip=lambda *_: None,
-                total_today=lambda: 0,
-                now_seconds=lambda: 0,
-                glow=glow,
-                idle_seconds=0.01,
+    def test_a_sync_neither_reads_nor_writes_settings_or_glow_colour(self):
+        for firmware in (b"53.63", b"90.11"):
+            client = EchoingClient(firmware=firmware)
+            glow = p.GlowSettings(goal_ml=2000, wake_s=7 * 3600, sleep_s=22 * 3600)
+            asyncio.run(
+                s.sync(
+                    client,
+                    size_ml=621,
+                    on_sip=lambda *_: None,
+                    total_today=lambda: 0,
+                    now_seconds=lambda: 0,
+                    glow=glow,
+                    idle_seconds=0.01,
+                )
             )
-        )
-        self.assertNotIn(p.SETTINGS, client.read_log)
-        self.assertNotIn(p.SETTINGS, [uuid for uuid, _ in client.writes])
+            for uuid in (p.SETTINGS, p.GLOW_COLOUR):
+                self.assertNotIn(uuid, client.read_log, firmware)
+                self.assertNotIn(uuid, [target for target, _ in client.writes], firmware)
 
 
 class WriteTargetsTest(unittest.TestCase):
     """docs/what-it-writes.md is a promise, so the code that writes is held to it."""
 
-    def test_settings_is_written_only_by_set_colour(self):
+    def test_settings_and_glow_colour_are_written_only_by_set_colour(self):
+        for target in ("SETTINGS", "GLOW_COLOUR"):
+            writers = set()
+            for name in ("coordinator.py", "session.py"):
+                for function in ast.walk(ast.parse((COMPONENT / name).read_text())):
+                    if isinstance(function, ast.AsyncFunctionDef):
+                        for node in ast.walk(function):
+                            if (
+                                isinstance(node, ast.Call)
+                                and getattr(node.func, "attr", "") == "write_gatt_char"
+                                and target in (getattr(node.args[0], "id", ""), getattr(node.args[0], "attr", ""))
+                            ):
+                                writers.add(function.name)
+            self.assertEqual(writers, {"set_colour"}, target)
+
+    def test_set_colour_writes_nothing_through_a_variable(self):
+        """So the two tests above see every write it makes."""
         tree = ast.parse((COMPONENT / "session.py").read_text())
-        writers = set()
-        for function in ast.walk(tree):
-            if isinstance(function, ast.AsyncFunctionDef):
-                for node in ast.walk(function):
-                    if (
-                        isinstance(node, ast.Call)
-                        and getattr(node.func, "attr", "") == "write_gatt_char"
-                        and getattr(node.args[0], "id", "") == "SETTINGS"
-                    ):
-                        writers.add(function.name)
-        self.assertEqual(writers, {"set_colour"})
+        function = next(n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name == "set_colour")
+        targets = {
+            node.args[0].id
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "write_gatt_char"
+        }
+        self.assertEqual(targets, {"SETTINGS", "GLOW_COLOUR"})
 
     def test_writes_go_only_where_the_doc_says(self):
-        allowed = {"SIPS", "COMMANDS", "GLOW_NOW", "SETTINGS", "uuid"}
+        allowed = {"SIPS", "COMMANDS", "GLOW_NOW", "SETTINGS", "GLOW_COLOUR", "uuid"}
         found = set()
         for name in ("coordinator.py", "session.py"):
             for node in ast.walk(ast.parse((COMPONENT / name).read_text())):

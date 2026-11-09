@@ -51,10 +51,10 @@ the weight characteristic on firmware 80.18. No code from any of them is used he
 | BATTERY_LEVEL | `00002a19-0000-1000-8000-00805f9b34fb` | Battery percent | Reads |
 | HARDWARE_REVISION | `00002a27-0000-1000-8000-00805f9b34fb` | Standard hardware revision slot. *Seen:* absent on 53.63, present but empty on 90.11 | Reads in the probe |
 | SIPS | `016e11b1-6c8a-4074-9e5a-076053f93784` | Handing over sips | Notifications and writes |
-| COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration. *Seen:* on 90.11 a read returned `88200000` out of the box on the charger, `88000000` after calibrating empty and `80000000` after calibrating full, then `80200000` back on the charger. So byte 1's `20` looks like "on the charger", and byte 0's `08` cleared with calibration. The rest isn't known | Writes, and reads in the probe |
+| COMMANDS | `e3578b0d-caa7-46d6-b7c2-7331c08de044` | Commands: totals, goal, calibration. *Seen:* on 90.11 a read returned `88200000` out of the box on the charger, `88000000` after calibrating empty and `80000000` after calibrating full, then `80200000` back on the charger. Believed: byte 0's `08` means the bottle wants calibrating, byte 1's `20` charging and its `10` charged. Byte 0 of exactly `80` is the bottle at rest. That fits what was seen: `08` cleared with calibration, and `20` showed only on the charger. Nothing in it marks a setup or demo state. The rest isn't known | Writes, and reads in the probe |
 | SCHEDULE | `b44b03f0-b850-4090-86eb-72863fb3618d` | Commands: glow schedule, clock. *Seen:* reads back as zeros on 53.63. On 90.11 it's write-only, and a read is refused | Writes, and reads in the probe |
 | GLOW_NOW | `a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0` | Make it glow now | Writes |
-| GLOW_COLOUR | `b810e826-cf05-4b46-a725-07bc0fa2e5d9` | Glow colour on Nordic bottles, in the same service as GLOW_NOW. Believed to be four bytes: a preset number then three zeros, or two 16-bit little-endian colours. *Seen:* present on 90.11, readable and writable. A 90.11 never set up with the app read `00000000`, as SETTINGS colours on 53.63 did from the factory | Reads in the probe, never writes |
+| GLOW_COLOUR | `b810e826-cf05-4b46-a725-07bc0fa2e5d9` | Glow colour on Nordic bottles, in the same service as GLOW_NOW. Believed to be four bytes: a preset number then three zeros, or two 16-bit little-endian colours. *Seen:* present on 90.11, readable and writable. A 90.11 never set up with the app read `00000000`, as SETTINGS colours on 53.63 did from the factory | Reads in the probe. Writes only when you change the glow colour, as the two colours below |
 | SETTINGS | `31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6` | Bottle settings. *Seen:* on 53.63 its first two bytes, little-endian, are the bottle's size in mL. Absent on 90.11 | Reads in the probe. Writes only when you change the glow colour |
 | CAPACITY | `316c4914-1f59-462e-af06-185418674c0c` | Size. *Seen:* absent on 53.63. On 90.11, straight out of the box, it read six zero bytes | Reads in the probe, **never writes** |
 | RUNNING_TOTAL | `6ac24e8b-056c-4077-8221-8f816ade71e6` | Running total. *Seen:* absent on 90.11 | Reads in the probe, **never writes** |
@@ -199,6 +199,10 @@ The percentage for row `n` of `count` is
 little-endian u16 in RGB565. A bottle that had never had a colour set read `6d02 0000 0000`. A colour
 A of `0x0001` is a special value meaning rainbow. All eight below have been written to a bottle and
 watched, and they work.
+
+Nordic bottles (80 to 99) keep the same two values in GLOW_COLOUR on their own: four bytes, colour A
+then colour B, each a little-endian u16. Aqua is `ff07 e107`. A colour written there hasn't yet been
+watched on a real bottle.
 
 | Colour | A | B |
 |---|---|---|

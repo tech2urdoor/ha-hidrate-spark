@@ -26,6 +26,7 @@ from .protocol import (
     Packet,
     acknowledge_command,
     colour_settings,
+    glow_colour_bytes,
     weight_reading,
     history_command,
     is_empty,
@@ -193,19 +194,37 @@ async def sync(
 
 
 async def set_colour(client: Any, colour: str) -> None:
-    """The only write to SETTINGS. It runs only when asked for, never during a sync, and takes no sips."""
+    """The only write to SETTINGS or GLOW_COLOUR. It runs only when asked for, never during a sync, and takes no sips.
+
+    Nordic bottles keep the colour in GLOW_COLOUR, and 50 to 59 in SETTINGS after the bottle's size.
+    """
     firmware = await read_firmware(client)
     if not firmware.can_set_colour:
         raise ColourNotSet(f"Changing the colour hasn't been tried on firmware {firmware.raw}")
+    # Each write names its characteristic, so the test of what's written can see it.
+    if firmware.is_nordic:
+        current = bytes(await client.read_gatt_char(GLOW_COLOUR))
+        wanted = _colour_bytes(glow_colour_bytes, current, colour)
+        if current != wanted:
+            await client.write_gatt_char(GLOW_COLOUR, wanted)
+            _check_colour(wanted, await client.read_gatt_char(GLOW_COLOUR))
+        return
     current = bytes(await client.read_gatt_char(SETTINGS))
+    wanted = _colour_bytes(colour_settings, current, colour)
+    if current != wanted:
+        await client.write_gatt_char(SETTINGS, wanted)
+        _check_colour(wanted, await client.read_gatt_char(SETTINGS))
+
+
+def _colour_bytes(build: Callable[[bytes, str], bytes], current: bytes, colour: str) -> bytes:
     try:
-        wanted = colour_settings(current, colour)
+        return build(current, colour)
     except ValueError as err:
         raise ColourNotSet(str(err)) from err
-    if current == wanted:
-        return
-    await client.write_gatt_char(SETTINGS, wanted)
-    after = bytes(await client.read_gatt_char(SETTINGS))
+
+
+def _check_colour(wanted: bytes, after: bytes) -> None:
+    after = bytes(after)
     if after != wanted:
         raise ColourNotSet(f"The bottle read back {after.hex()} after writing {wanted.hex()}")
 

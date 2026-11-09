@@ -21,7 +21,8 @@ SCHEDULE = "b44b03f0-b850-4090-86eb-72863fb3618d"
 SETTINGS = "31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6"
 CAPACITY = "316c4914-1f59-462e-af06-185418674c0c"
 GLOW_NOW = "a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0"
-# Nordic bottles keep their glow colour here, beside GLOW_NOW, rather than in SETTINGS. Only ever read.
+# Nordic bottles keep their glow colour here, beside GLOW_NOW, rather than in SETTINGS. Written only
+# when you change the glow colour.
 GLOW_COLOUR = "b810e826-cf05-4b46-a725-07bc0fa2e5d9"
 RUNNING_TOTAL = "6ac24e8b-056c-4077-8221-8f816ade71e6"
 WEIGHT = "1807a063-4e2d-4636-981a-35e93d1c7b94"
@@ -47,7 +48,8 @@ GOAL_STROBE = 61
 # A reading this far past a mark, as a share of the marks' span, isn't water: the base off the bottle, say.
 MARK_MARGIN = 0.1
 
-# The two RGB565 values SETTINGS holds after the bottle's size. Colour A 0x0001 is a special value.
+# The two RGB565 values SETTINGS holds after the bottle's size, and GLOW_COLOUR holds on its own.
+# Colour A 0x0001 is a special value.
 GLOW_COLOURS = {
     "Rainbow": (0x0001, 0x03BF),
     "Blue": (0x077F, 0x03BF),
@@ -59,6 +61,7 @@ GLOW_COLOURS = {
     "White": (0xCE9B, 0xFFFF),
 }
 SETTINGS_LENGTH = 6
+GLOW_COLOUR_LENGTH = 4
 
 # Sent after each sip by bottles that wait to be told a sip arrived before sending the next.
 ACKNOWLEDGE_SIP = 0x33
@@ -117,8 +120,8 @@ class Firmware:
 
     @property
     def can_set_colour(self) -> bool:
-        """The only family whose SETTINGS layout has been seen. Others may hold something else there."""
-        return 50 <= self.major < 60
+        """50 to 59 keep their colour in SETTINGS, and Nordic in GLOW_COLOUR. Others may hold something else."""
+        return 50 <= self.major < 60 or self.is_nordic
 
 
 def colour_settings(current: bytes, colour: str) -> bytes:
@@ -127,6 +130,14 @@ def colour_settings(current: bytes, colour: str) -> bytes:
     if len(current) != SETTINGS_LENGTH:
         raise ValueError(f"SETTINGS is {len(current)} bytes, expected {SETTINGS_LENGTH}")
     return current[:2] + struct.pack("<HH", *GLOW_COLOURS[colour])
+
+
+def glow_colour_bytes(current: bytes, colour: str) -> bytes:
+    """GLOW_COLOUR on a Nordic bottle: the two colours and nothing else. Refuses a length it doesn't expect."""
+    current = bytes(current)
+    if len(current) != GLOW_COLOUR_LENGTH:
+        raise ValueError(f"GLOW_COLOUR is {len(current)} bytes, expected {GLOW_COLOUR_LENGTH}")
+    return struct.pack("<HH", *GLOW_COLOURS[colour])
 
 
 def acknowledge_command() -> bytes:

@@ -32,7 +32,7 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Find my bottle | `Find` button |
 | Marks | `Mark empty` and `Mark full` buttons. These only remember a reading in Home Assistant and write nothing to the bottle, so pressing one again puts it right |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
-| Glow colour | `Glow colour` select with eight colours, disabled by default. Firmware 50 to 59 only. [It changes the bottle's own settings, at your own risk](docs/what-it-writes.md#only-when-you-change-the-glow-colour) |
+| Glow colour | `Glow colour` select with eight colours, disabled by default. Firmware 50 to 59, and 80 to 99. [It changes the bottle's own settings, at your own risk](docs/what-it-writes.md#only-when-you-change-the-glow-colour) |
 
 There's also a `Sync now` button and a `Last sync` sensor, whose `last_error` attribute tells you
 what went wrong if a sync failed.
@@ -127,7 +127,7 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
 | Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, accuracy unchecked | Works | Untested |
-| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Untested | Reads a value, accuracy unchecked | Untested | Pressed empty then full out of the box, with no error, and the next sip read close |
+| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, one measured pour so far: 250 mL read as 235 | Untested | Reads a value, but it said 9% while the bottle's own lights showed fully charged | Untested | Pressed empty then full out of the box, with no error, and the next sip read close |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
 | Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |
@@ -138,7 +138,9 @@ bottle sent it, because no other family has been seen reading sips over days. If
 out wrong, or a bottle that was never calibrated sends sips that work out to nothing, the amounts can
 be worked out again from those records rather than lost.
 
-**The Pro** (firmware 90.11) has no SETTINGS, so `Glow colour` won't change it. It refuses a
+**The Pro** (firmware 90.11) keeps its glow colour apart from its other settings, and one never set up
+with the app has none at all. `Glow colour` writes it the way it's believed the app does, but that
+hasn't been watched on a real bottle yet, and nor has the Pro glowing. It refuses a
 plain read of its weight value, so `Water left` comes from sips and the mark buttons can't get a
 reading. It came uncalibrated out of the box and was calibrated from here before its first sip, so
 whether an uncalibrated one reads sips right still isn't known. Calibrate it empty, then full, before

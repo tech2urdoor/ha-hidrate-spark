@@ -52,13 +52,16 @@ until you calibrate again. Turn them on from the entity's settings when you need
 
 | Control | Where | What |
 |---|---|---|
-| Glow colour | SETTINGS | The bottle's six setting bytes, with the last four replaced by the two colour values |
+| Glow colour | SETTINGS | Firmware 50 to 59. The bottle's six setting bytes, with the last four replaced by the two colour values |
+| Glow colour | GLOW_COLOUR | Firmware 80 to 99. Four bytes, the two colour values and nothing else |
 
 **This changes the bottle's own settings, at your own risk.** It comes with no warranty, like the
-rest of this project. It's disabled by default, and a sync never reads or writes SETTINGS. It reads
-the bytes first and refuses unless there are exactly six, keeps the first two as they were, then
-reads them back to check. It only runs on firmware 50 to 59, the one family whose layout has been
-seen.
+rest of this project. It's disabled by default, and a sync never reads or writes SETTINGS or GLOW_COLOUR.
+On firmware 50 to 59 it reads SETTINGS first and refuses unless there are exactly six bytes, keeps
+the first two as they were, then reads them back to check. On 80 to 99 it reads GLOW_COLOUR first,
+refuses unless there are exactly four bytes, writes the two colours, then reads them back to check.
+It refuses every other firmware. Only the 50 to 59 layout has been seen working. A 90.11 that was
+never set up with the app read no colour at all.
 
 ## The probe
 
@@ -79,4 +82,4 @@ These four are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration wr
 If your bottle needs an update, that's a job for the official app.
 
 The probe does read SETTINGS, CAPACITY, RUNNING_TOTAL, WEIGHT and GLOW_COLOUR, because reading is safe and shows
-how a bottle differs. Nothing writes GLOW_COLOUR. It does not touch either firmware update channel at all.
+how a bottle differs. It does not touch either firmware update channel at all.
