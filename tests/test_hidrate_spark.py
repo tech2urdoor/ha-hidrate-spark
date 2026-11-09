@@ -503,6 +503,8 @@ class ProbeTest(unittest.TestCase):
         self.assertNotIn(p.SIPS, client.read_log)
         self.assertNotIn(p.FIRMWARE_UPDATE, client.read_log)
         self.assertNotIn(p.FIRMWARE_UPDATE_SMP, client.read_log)
+        self.assertIn(p.GLOW_COLOUR, client.read_log)
+        self.assertIn("error", report["glow_colour"])
         self.assertEqual(client.writes, [])
 
     def test_serial_is_never_reported(self):

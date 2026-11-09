@@ -21,6 +21,8 @@ SCHEDULE = "b44b03f0-b850-4090-86eb-72863fb3618d"
 SETTINGS = "31fb5b6c-0166-4c97-ba1d-bf0a82fbbcb6"
 CAPACITY = "316c4914-1f59-462e-af06-185418674c0c"
 GLOW_NOW = "a1d9a5bf-f5d8-49f3-a440-e6bf27440cb0"
+# Nordic bottles keep their glow colour here, beside GLOW_NOW, rather than in SETTINGS. Only ever read.
+GLOW_COLOUR = "b810e826-cf05-4b46-a725-07bc0fa2e5d9"
 RUNNING_TOTAL = "6ac24e8b-056c-4077-8221-8f816ade71e6"
 WEIGHT = "1807a063-4e2d-4636-981a-35e93d1c7b94"
 FIRMWARE_UPDATE = "00060001-f8ce-11e4-abf4-0002a5d5c51b"

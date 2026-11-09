@@ -13,6 +13,7 @@ from .protocol import (
     CAPACITY,
     COMMANDS,
     FIRMWARE_REVISION,
+    GLOW_COLOUR,
     HARDWARE_REVISION,
     RUNNING_TOTAL,
     WEIGHT,
@@ -51,6 +52,7 @@ PROBE_READS = {
     "schedule": SCHEDULE,
     "running_total": RUNNING_TOTAL,
     "weight": WEIGHT,
+    "glow_colour": GLOW_COLOUR,
 }
 
 
