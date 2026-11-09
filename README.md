@@ -12,7 +12,8 @@ cloud. It's a community project and is [not affiliated with Hidrate](#disclaimer
 > has set glow reminders that fired on time with nothing connected.
 > A second bottle, a 946 mL Pro with firmware 90.11, has connected and synced straight out of the box,
 > never set up with the app. It was calibrated empty then full from here, and one measured pour of
-> 250 mL then read as 235 mL. It glowed on Find only once a glow colour had been set from here. Read
+> 250 mL then read as 235 mL. Filled to its line it holds about 1015 mL, not 946, and set to that its
+> amounts come out right. It glowed on Find only once a glow colour had been set from here. Read
 > [what it writes to your bottle](docs/what-it-writes.md) before you install it.
 
 The point of publishing it is so other owners can report their bottles and get them working. If
@@ -117,7 +118,7 @@ in range. While reminders are off, changing the others sends nothing to the bott
 | Glow at every reminder | Off | *Control.* Otherwise only when you're behind |
 | Glow on each sip | On | |
 | Glow when the goal is reached | On | |
-| Bottle size | 621 mL | |
+| Bottle size | 621 mL | What the bottle holds filled to its line, which can be more than the size it's sold as. Sips and `Water left` are shares of it. To check yours, pour a measured amount out of a full bottle, sync, and multiply the size by what you poured over what it read |
 | Minutes between syncs | 30 | More often is kinder to reminders and harder on the battery. On its charger it's at most 5 |
 
 ## Bottle compatibility
@@ -128,7 +129,7 @@ run on a real bottle. **Refused** means the integration stops before reading a s
 | Bottle | Firmware | Connects | Sips | Reminders | Battery | Find | Calibrate |
 |---|---|---|---|---|---|---|---|
 | Steel, 621 mL | 53.63 | Works | Works, two real sips so far | Works, two watched at times only this integration had set | Reads a value, but not a measure of charge: it read 33 a minute after a full charge. Charging read right on its charger and off it. Charged not seen yet | Works | Works: pressed empty then full, and the next sip's stored empty and full readings matched the bottle's own level readings at those presses. A 250 mL pour then read as 249. It doesn't light up for either press |
-| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, two measured pours so far: 250 mL read as 235 and as 233 | Not working yet. Once a glow colour was set, one sip glowed but was never recorded, and the next two were recorded but didn't glow | Reads a value, but it said 9% while the bottle's own lights showed fully charged. It read 100 off the charger after a full charge. Charging read right on its charger and off it. Charged not seen: full on its charger, it stopped charging for about a minute and then started again, and read not charging in that minute | Works, but only once a glow colour was set. Before that it showed nothing | Works: pressed empty then full out of the box, then again later. The stored empty and full readings changed with the second calibration. A 250 mL pour read as 235 after the first and 233 after the second. It flashes for each press |
+| Pro, 946 mL | 90.11 | Works, never set up with the app | Works, two measured pours so far: 250 mL read as 235 and as 233 with Bottle size at 946. That makes its line about 1015 mL, so set Bottle size to that | Not working yet. Once a glow colour was set, one sip glowed but was never recorded, and the next two were recorded but didn't glow | Reads a value, but it said 9% while the bottle's own lights showed fully charged. It read 100 off the charger after a full charge. Charging read right on its charger and off it. Charged not seen: full on its charger, it stopped charging for about a minute and then started again, and read not charging in that minute | Works, but only once a glow colour was set. Before that it showed nothing | Works: pressed empty then full out of the box, then again later. The stored empty and full readings changed with the second calibration. A 250 mL pour read as 235 after the first and 233 after the second. It flashes for each press |
 | Any other, firmware 40–99 | | Untested | Untested | Untested | Untested | Untested | Untested |
 | Older bottles, firmware 8–19 and 30–39 | | Untested | Untested, see below | Untested | Untested | Untested | Untested |
 | Firmware below 8, or 20–29 | | Untested | Refused | Refused | Refused | Untested | Untested |

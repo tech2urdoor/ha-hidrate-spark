@@ -9,7 +9,7 @@ for the sole purpose of making that bottle work without the app. These are facts
 bottle communicates. This repository holds no code, text or artwork from Hidrate.
 
 **How far to trust it.** Two bottles have been run. One, with firmware 53.63, has been run for days.
-The other, a 946 mL Pro with firmware 90.11, has connected, synced, been probed and calibrated,
+The other, a Pro with firmware 90.11, sold as 946 mL but holding about 1015 mL to its line, has connected, synced, been probed and calibrated,
 and handed over one measured sip. Points marked *Seen* were observed on one of them, and say which. Everything
 else comes from reading how the app behaves, and could be wrong for your bottle. The
 [compatibility table](../README.md#bottle-compatibility) has the overall picture.
@@ -107,7 +107,8 @@ straight after got nothing there too.
 
 *Seen, calibration:* a second calibration on both bottles changed the empty and full readings stored with the next
 sip. On 53.63 they matched, within a unit, the weight readings taken at the two presses, and 250 mL poured out read as
-249 mL. On 90.11 the same pour read as 233 mL, about 7% low both times it was tried. 90.11 flashes when it gets
+249 mL, so its 621 mL size is right to the line. On 90.11 the same pour read as 233 mL with the size at 946, about 7% low
+both times it was tried, so its line holds about 250 / 233 × 946 ≈ 1015 mL. 90.11 flashes when it gets
 `40` or `41`. 53.63 shows nothing for either, but still takes it.
 
 Telink bottles are still refused: they're believed to differ in more than the acknowledgement.
