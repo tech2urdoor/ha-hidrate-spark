@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components import webhook
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
@@ -22,7 +23,7 @@ from homeassistant.helpers.selector import (
     TimeSelector,
 )
 
-from . import bermuda
+from . import bermuda, relay_webhook
 from .const import (
     CONF_FREQUENCY_MIN,
     CONF_GLOW_ALWAYS,
@@ -31,10 +32,12 @@ from .const import (
     CONF_GOAL_ML,
     CONF_LIGHT,
     CONF_MANAGE_REMINDERS,
+    CONF_PHONE_RELAY,
     CONF_SIZE_ML,
     CONF_SLEEP,
     CONF_SYNC_MINUTES,
     CONF_WAKE,
+    CONF_WEBHOOK_ID,
     DEFAULTS,
     DOMAIN,
     FREQUENCY_RANGE,
@@ -143,8 +146,14 @@ class HidrateConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class HidrateOptionsFlow(OptionsFlow):
+    def __init__(self) -> None:
+        self._options: dict[str, Any] = {}
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
+            self._options = user_input
+            if user_input[CONF_PHONE_RELAY]:
+                return await self.async_step_phone_relay()
             return self.async_create_entry(data=user_input)
 
         def default(key: str) -> Any:
@@ -171,6 +180,23 @@ class HidrateOptionsFlow(OptionsFlow):
                     vol.Required(CONF_GLOW_ON_GOAL, default=default(CONF_GLOW_ON_GOAL)): BooleanSelector(),
                     vol.Required(CONF_SIZE_ML, default=default(CONF_SIZE_ML)): _number(100, 3000, 1, "mL"),
                     vol.Required(CONF_SYNC_MINUTES, default=default(CONF_SYNC_MINUTES)): _number(5, 720, 5, "min"),
+                    vol.Required(CONF_PHONE_RELAY, default=default(CONF_PHONE_RELAY)): BooleanSelector(),
                 }
             ),
+        )
+
+    async def async_step_phone_relay(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Shows the address the phone needs. It's made once and kept, so turning the option off and on doesn't change it."""
+        if user_input is not None:
+            return self.async_create_entry(data=self._options)
+        webhook_id = self.config_entry.data.get(CONF_WEBHOOK_ID)
+        if not webhook_id:
+            webhook_id = webhook.async_generate_id()
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data={**self.config_entry.data, CONF_WEBHOOK_ID: webhook_id}
+            )
+        return self.async_show_form(
+            step_id="phone_relay",
+            data_schema=vol.Schema({}),
+            description_placeholders={"address": relay_webhook.address_for(self.hass, webhook_id)},
         )

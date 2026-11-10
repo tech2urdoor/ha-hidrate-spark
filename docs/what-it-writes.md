@@ -74,6 +74,13 @@ added to Bermuda's Select Devices setting, through Bermuda's own settings screen
 Bermuda's settings in Home Assistant, not to the bottle, and it's the only time this integration
 changes another integration. It never removes anything there.
 
+## Through a phone, only if you turn on the phone relay
+
+With "Let a phone read the bottle away from home" on, the [relay app](phone-relay.md) makes the
+writes in the two "Every sync" tables above from the phone, using bytes Home Assistant gives it. It
+makes no others: the integration refuses to ask a phone to write anywhere but COMMANDS and SCHEDULE,
+and the app refuses if asked. A test holds each side to that.
+
 ## What it never writes
 
 These four are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.

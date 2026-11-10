@@ -24,7 +24,7 @@ def bluetooth_requirements() -> list[str]:
     components = Path(homeassistant.components.__file__).parent
     seen: set[str] = set()
     wanted: list[str] = []
-    todo = ["bluetooth"]
+    todo = ["bluetooth", "webhook"]
     while todo:
         name = todo.pop()
         if name in seen:

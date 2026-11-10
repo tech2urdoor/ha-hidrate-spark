@@ -219,8 +219,7 @@ class HidrateCoordinator:
     def _on_due_check(self, _now: datetime) -> None:
         # The last-heard time keeps moving even for adverts that never reach a callback. An entry
         # outlives the bottle's departure by several minutes, so its being there isn't enough.
-        info = bluetooth.async_last_service_info(self.hass, self.address, connectable=True)
-        if info is not None and time.monotonic() - info.time < HEARD_WITHIN_SECONDS:
+        if self.heard_recently():
             self._sync_if_due()
 
     @callback
@@ -330,17 +329,7 @@ class HidrateCoordinator:
 
             def on_sip(packet: protocol.Packet, received: float) -> None:
                 nonlocal took_any
-                at = datetime.fromtimestamp(received - max(0, packet.seconds_ago), timezone.utc)
-                if keep_raw:
-                    self.log.keep_raw(at, packet.data)
-                    self._store.async_delay_save(self._as_dict, 1)
-                    _LOGGER.info("Record from a bottle not yet tried with this integration: %s", packet.data.hex())
-                if self.log.add(packet, at, self.size_ml) is None:
-                    _LOGGER.debug("Skipped %s (refill or repeat)", packet)
-                    return
-                took_any = True
-                # Reads look one-shot, so the sip gets to disk before anything else can go wrong.
-                self._store.async_delay_save(self._as_dict, 1)
+                took_any = self._take(packet, received, keep_raw) or took_any
 
             async def work(client: Any) -> session.SyncResult:
                 return await session.sync(
@@ -387,6 +376,73 @@ class HidrateCoordinator:
             self._notify()
             if took_any:
                 _LOGGER.debug("New sips, today now %.0f mL", self.total_today())
+
+    def _take(self, packet: protocol.Packet, received: float, keep_raw: bool) -> bool:
+        """Saves one record. False for a refill or a repeat of one already held."""
+        at = datetime.fromtimestamp(received - max(0, packet.seconds_ago), timezone.utc)
+        if keep_raw:
+            self.log.keep_raw(at, packet.data)
+            self._store.async_delay_save(self._as_dict, 1)
+            _LOGGER.info("Record from a bottle not yet tried with this integration: %s", packet.data.hex())
+        if self.log.add(packet, at, self.size_ml) is None:
+            _LOGGER.debug("Skipped %s (refill or repeat)", packet)
+            return False
+        # Reads look one-shot, so the sip gets to disk before anything else can go wrong.
+        self._store.async_delay_save(self._as_dict, 1)
+        return True
+
+    def heard_recently(self) -> bool:
+        """Whether the bottle is in range of Home Assistant, which then reads it without a phone's help."""
+        info = bluetooth.async_last_service_info(self.hass, self.address, connectable=True)
+        return info is not None and time.monotonic() - info.time < HEARD_WITHIN_SECONDS
+
+    async def async_relayed(
+        self,
+        firmware: protocol.Firmware,
+        records: list[tuple[protocol.Packet, float]],
+        *,
+        connected: bool,
+        battery: int | None = None,
+        status: bytes | None = None,
+    ) -> tuple[int, list[tuple[str, bytes]]]:
+        """Takes what a phone read off the bottle. Returns how many sips were new, and what the phone should write.
+
+        Records can arrive long after they were read, from a phone that had no signal at the time, and
+        then it isn't connected to the bottle any more: they're saved and nothing else changes.
+        """
+        if not firmware.supported:
+            raise session.UnsupportedBottle(f"Firmware {firmware.raw} isn't a kind this integration can read")
+        async with self._lock:
+            taken = 0
+            try:
+                for packet, received in records:
+                    if packet.complete and not protocol.is_empty(packet, self.size_ml):
+                        taken += self._take(packet, received, firmware.keeps_raw_records)
+                if connected:
+                    self._last_attempt = time.monotonic()
+                    self._unsupported = False
+                    self.firmware = firmware.raw
+                    if battery is not None:
+                        self.battery = battery
+                    charge = protocol.charge_state(status) if status else None
+                    if charge is not None:
+                        self.charge = charge
+                        if charge in protocol.ON_CHARGER:
+                            self.last_charged = dt_util.utcnow()
+                    self.last_sync = dt_util.utcnow()
+                    self.last_error = None
+                    self._succeeded = True
+                    self._update_device()
+            finally:
+                self.log.prune(dt_util.utcnow())
+                await self._store.async_save(self._as_dict())
+            self._notify()
+            glow = self._glow() if connected else None
+            if glow is None:
+                return taken, []
+            return taken, protocol.reminder_writes(
+                glow, firmware, self.size_ml, self.total_today(), self._now_seconds()
+            )
 
     def _record_failure(self, err: Exception) -> None:
         if self._succeeded or self.last_error is None:

@@ -23,6 +23,7 @@ package.__path__ = [str(COMPONENT)]
 sys.modules["hidrate_spark"] = package
 
 from hidrate_spark import protocol as p  # noqa: E402
+from hidrate_spark import relay as r  # noqa: E402
 from hidrate_spark import session as s  # noqa: E402
 from hidrate_spark.sip_log import SipLog  # noqa: E402
 
@@ -801,7 +802,7 @@ class RepositoryTest(unittest.TestCase):
             self.skipTest("not a git checkout")
         for name in filter(None, listed):
             path = ROOT / name
-            if not path.is_file() or path.suffix == ".png":
+            if not path.is_file() or path.suffix in (".png", ".jar"):
                 continue
             for found in re.findall(r"\b[0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5}\b", path.read_text()):
                 self.assertIn(found.upper(), placeholders, name)
@@ -990,6 +991,80 @@ class LevelTest(unittest.TestCase):
         self.log.keep_raw(self.at, sip_packet())
         self.log.prune(self.at + timedelta(days=91))
         self.assertEqual(self.log.raw_records, [])
+
+
+class RelayTest(unittest.TestCase):
+    """A phone carries bytes for Home Assistant, and is only ever told what the bottle would be sent from here."""
+
+    NOW = 1_800_000_000.0
+
+    def test_the_phone_is_told_the_same_bytes_a_sync_would_send(self):
+        self.assertEqual(
+            r.instructions(STEEL), {"go": True, "ask": "57", "acknowledge": None, "idle_seconds": r.IDLE_SECONDS}
+        )
+        old = r.instructions(p.Firmware.parse(b"12.0"))
+        self.assertEqual((old["ask"], old["acknowledge"]), ("55", "33"))
+
+    def test_a_bottle_that_cant_be_read_is_refused_before_any_sip_is_taken(self):
+        for raw in (b"105.0", b"25.0", b"3.1"):
+            self.assertEqual(r.instructions(p.Firmware.parse(raw)), {"go": False, "reason": "unsupported"})
+
+    def test_firmware_has_to_be_there_and_readable(self):
+        self.assertEqual(r.firmware_from({"firmware": "90.11"}).major, 90)
+        for bad in ({}, {"firmware": ""}, {"firmware": 90}, {"firmware": "banana"}, {"firmware": "9" * 40}):
+            with self.assertRaises(r.BadRequest):
+                r.firmware_from(bad)
+
+    def test_records_come_back_as_packets_with_the_phones_time(self):
+        data = sip_packet(seconds=40)
+        records = r.records_from({"records": [{"hex": data.hex(), "received": self.NOW - 5}]}, self.NOW)
+        self.assertEqual(records, [(p.parse_packet(data), self.NOW - 5)])
+        self.assertEqual(records[0][0].data, data)
+
+    def test_no_records_is_fine(self):
+        self.assertEqual(r.records_from({}, self.NOW), [])
+
+    def test_one_bad_record_refuses_them_all(self):
+        good = {"hex": sip_packet().hex(), "received": self.NOW}
+        for bad in (
+            "text",
+            {"hex": "zz", "received": self.NOW},
+            {"hex": "", "received": self.NOW},
+            {"hex": "00" * 65, "received": self.NOW},
+            {"hex": sip_packet().hex()},
+            {"hex": sip_packet().hex(), "received": True},
+            {"hex": sip_packet().hex(), "received": self.NOW + r.CLOCK_AHEAD_SECONDS + 1},
+            {"hex": sip_packet().hex(), "received": 0},
+        ):
+            with self.assertRaises(r.BadRequest, msg=bad):
+                r.records_from({"records": [good, bad]}, self.NOW)
+        with self.assertRaises(r.BadRequest):
+            r.records_from({"records": [good] * (r.MAX_RECORDS + 1)}, self.NOW)
+        with self.assertRaises(r.BadRequest):
+            r.records_from({"records": "text"}, self.NOW)
+
+    def test_a_phone_clock_slightly_ahead_is_allowed(self):
+        row = {"hex": sip_packet().hex(), "received": self.NOW + r.CLOCK_AHEAD_SECONDS}
+        self.assertEqual(len(r.records_from({"records": [row]}, self.NOW)), 1)
+
+    def test_battery_and_status_are_optional_and_checked(self):
+        self.assertEqual(r.battery_from({"battery": 80}), 80)
+        for bad in ({}, {"battery": 101}, {"battery": -1}, {"battery": "80"}, {"battery": True}):
+            self.assertIsNone(r.battery_from(bad))
+        self.assertEqual(r.status_from({"commands": "80200000"}), bytes.fromhex("80200000"))
+        for bad in ({}, {"commands": None}, {"commands": "zz"}, {"commands": 5}, {"commands": ""}):
+            self.assertIsNone(r.status_from(bad))
+
+    def test_the_reminder_writes_are_passed_on_in_order(self):
+        writes = p.reminder_writes(GLOW, NORDIC, 946, 500, 3600)
+        reply = r.writes_reply(writes)
+        self.assertEqual([(w["characteristic"], bytes.fromhex(w["hex"])) for w in reply], writes)
+
+    def test_a_phone_is_never_told_to_write_anywhere_else(self):
+        self.assertEqual(r.RELAY_WRITES, {p.COMMANDS, p.SCHEDULE})
+        for uuid in (*p.NEVER_WRITE, p.SETTINGS, p.GLOW_COLOUR, p.GLOW_NOW, p.SIPS):
+            with self.assertRaises(ValueError):
+                r.writes_reply([(uuid, bytes(1))])
 
 
 if __name__ == "__main__":

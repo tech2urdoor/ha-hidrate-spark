@@ -59,7 +59,8 @@ it can block this integration from connecting at all. Close the app while you tr
 uninstall it when you're happy.
 
 **Sips wait on the bottle until it's home.** There's no phone in your pocket doing the syncing any
-more, so nothing is read while the bottle is out of range of Home Assistant. Sips taken away stay on
+more, so nothing is read while the bottle is out of range of Home Assistant, unless you set up the
+optional [phone relay](docs/phone-relay.md). Sips taken away stay on
 the bottle. When it comes home they land on the day you drank them, because each one records how
 long ago it happened. How many a bottle can hold isn't known yet. A sip that comes home late can't
 change what `Today` recorded on the day you drank it, so use `daily_totals` for history.
@@ -138,6 +139,7 @@ in range. While reminders are off, changing the others sends nothing to the bott
 | Glow when the goal is reached | On | |
 | Bottle size | 621 mL | What the bottle holds filled to its line, which can be more than the size it's sold as. Sips and `Water left` are shares of it. To check yours, pour a measured amount out of a full bottle, sync, and multiply the size by what you poured over what it read |
 | Minutes between syncs | 30 | More often is kinder to reminders and harder on the battery. On its charger it's at most 5 |
+| Let a phone read the bottle away from home | Off | For the [phone relay](docs/phone-relay.md). The next screen shows the address to give the app. **Untested on a real bottle** |
 
 ## Bottle compatibility
 
@@ -214,13 +216,15 @@ safe to paste into an issue. If you have more than one bottle, choose which one.
 ## Privacy
 
 Everything stays on your Home Assistant. This integration talks to no server, needs no account and
-sends no telemetry. Sips are stored in Home Assistant's `.storage` folder, and your backups will
+sends no telemetry. The optional phone relay sends what it reads to your own Home Assistant and
+nowhere else. Sips are stored in Home Assistant's `.storage` folder, and your backups will
 include them.
 
 ## Docs
 
 - [What it writes to your bottle](docs/what-it-writes.md), and what it never writes
 - [The bottle's protocol](docs/protocol.md)
+- [Phone relay](docs/phone-relay.md), for syncing while the bottle is away from home
 - [Contributing](CONTRIBUTING.md)
 
 ## Disclaimer

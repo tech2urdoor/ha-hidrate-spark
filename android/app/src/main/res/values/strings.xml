@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bottle Relay</string>
+    <string name="intro">Reads your bottle while it\'s away from home and hands the sips to Home Assistant. At home it stands down and Home Assistant reads the bottle itself.</string>
+    <string name="address_label">Relay address from Home Assistant</string>
+    <string name="address_hint">https://…/api/webhook/…</string>
+    <string name="save">Save address</string>
+    <string name="bottle_none">No bottle chosen</string>
+    <string name="bottle_chosen">Bottle: %1$s</string>
+    <string name="choose">Choose bottle</string>
+    <string name="choosing">Looking for bottles…</string>
+    <string name="none_found">No bottle heard. Stand it nearby and try again.</string>
+    <string name="pick_title">Which bottle?</string>
+    <string name="every_half_hour">Sync every 30 minutes</string>
+    <string name="sync_now">Sync now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="needs_permission">Allow Nearby devices so the bottle can be reached.</string>
+    <string name="needs_setup">Save the relay address and choose a bottle first.</string>
+    <string name="saved">Saved</string>
+    <string name="bad_address">That isn\'t an http or https address.</string>
+    <string name="log_title">Recent syncs</string>
+</resources>

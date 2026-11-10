@@ -50,8 +50,16 @@
           "glow_on_sip": "Glow on each sip",
           "glow_on_goal": "Glow when the goal is reached",
           "size_ml": "Bottle size",
-          "sync_minutes": "Minutes between syncs"
+          "sync_minutes": "Minutes between syncs",
+          "phone_relay": "Let a phone read the bottle away from home"
+        },
+        "data_description": {
+          "phone_relay": "For the relay app on a phone that stays near the bottle. The next screen shows the address to give it."
         }
+      },
+      "phone_relay": {
+        "title": "Phone relay",
+        "description": "Give the relay app this address:\n\n`{address}`\n\nAnyone who has it can add sips to this bottle, so treat it like a password. It stays the same if you turn the relay off and on again."
       }
     }
   },

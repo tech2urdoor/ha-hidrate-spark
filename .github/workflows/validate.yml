@@ -62,3 +62,16 @@ jobs:
         run: python tests/check_imports.py
       - name: Coordinator tests
         run: python tests/test_coordinator.py
+
+  relay-app:
+    name: Phone relay app builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Tests and a debug build
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug

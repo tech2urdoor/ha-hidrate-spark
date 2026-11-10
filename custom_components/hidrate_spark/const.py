@@ -12,6 +12,9 @@ CONF_LIGHT = "glow_light"
 CONF_GLOW_ALWAYS = "glow_always"
 CONF_GLOW_ON_SIP = "glow_on_sip"
 CONF_GLOW_ON_GOAL = "glow_on_goal"
+CONF_PHONE_RELAY = "phone_relay"
+# Kept in the entry's data, not its options: saving the Configure screen replaces every option.
+CONF_WEBHOOK_ID = "webhook_id"
 
 # Reminders stay off until the real settings are in, because the rows they write replace whatever
 # the bottle is holding. Sync every 30 minutes: often enough to keep reminders honest, and half the
@@ -29,6 +32,7 @@ DEFAULTS = {
     CONF_GLOW_ALWAYS: False,
     CONF_GLOW_ON_SIP: True,
     CONF_GLOW_ON_GOAL: True,
+    CONF_PHONE_RELAY: False,
 }
 
 # Lowest, highest and step, shared by the Configure screen and the number entities.

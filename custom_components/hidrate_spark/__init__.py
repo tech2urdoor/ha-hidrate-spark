@@ -9,6 +9,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
+from . import relay_webhook
 from .const import DOMAIN
 from .coordinator import HidrateCoordinator
 
@@ -63,10 +64,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(coordinator.async_start())
     entry.async_on_unload(entry.add_update_listener(_options_updated))
+    relay_webhook.async_update(hass, entry)
+    entry.async_on_unload(lambda: relay_webhook.async_remove(hass, entry))
     return True
 
 
-async def _options_updated(_hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    relay_webhook.async_update(hass, entry)
     entry.runtime_data.async_options_changed()
 
 

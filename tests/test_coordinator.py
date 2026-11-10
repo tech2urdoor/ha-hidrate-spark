@@ -4,6 +4,8 @@
 """
 
 import asyncio
+import json
+import struct
 import sys
 import time
 import unittest
@@ -20,6 +22,7 @@ from custom_components.hidrate_spark import binary_sensor as binary_sensor_platf
 from custom_components.hidrate_spark import config_flow  # noqa: E402
 from custom_components.hidrate_spark import coordinator as module  # noqa: E402
 from custom_components.hidrate_spark import number as number_platform  # noqa: E402
+from custom_components.hidrate_spark import relay_webhook  # noqa: E402
 from custom_components.hidrate_spark import select as select_platform  # noqa: E402
 from custom_components.hidrate_spark import sensor as sensor_platform  # noqa: E402
 from custom_components.hidrate_spark import switch as switch_platform  # noqa: E402
@@ -731,6 +734,228 @@ class ProbeChoiceTest(unittest.TestCase):
     def test_an_unknown_choice_is_refused(self):
         with self.assertRaisesRegex(integration.HomeAssistantError, "isn't set up"):
             self.run_probe([self.entry("a")], bottle="b")
+
+
+def record(seconds=30, start=400, stop=300):
+    return struct.pack("<BxHiHHHH", 0, 1, seconds, 100, 500, start, stop)
+
+
+class RelayedTest(Base):
+    """What a phone read off the bottle is saved exactly as a sync's would be."""
+
+    FIRMWARE = module.protocol.Firmware.parse(b"90.11")
+
+    def setUp(self):
+        super().setUp()
+        self.coordinator._store.async_save = mock.AsyncMock()
+        self.coordinator._update_device = mock.Mock()
+
+    def relayed(self, rows, **kwargs):
+        records = [(module.protocol.parse_packet(data), received) for data, received in rows]
+        kwargs.setdefault("connected", True)
+        return asyncio.run(self.coordinator.async_relayed(self.FIRMWARE, records, **kwargs))
+
+    def test_a_sip_lands_at_the_time_it_was_drunk(self):
+        received = time.time() - 600
+        saved, _writes = self.relayed([(record(seconds=40), received)])
+        self.assertEqual(saved, 1)
+        sip = self.coordinator.log.last
+        self.assertAlmostEqual(sip.at.timestamp(), received - 40, places=3)
+        self.assertEqual(sip.ml, 155.2)  # a quarter of the default 621 mL
+        self.coordinator._store.async_save.assert_awaited()
+
+    def test_the_same_record_sent_twice_counts_once(self):
+        received = time.time()
+        self.assertEqual(self.relayed([(record(), received)])[0], 1)
+        self.assertEqual(self.relayed([(record(), received)])[0], 0)
+        self.assertEqual(len(self.coordinator.log.sips), 1)
+
+    def test_empty_and_short_records_are_skipped(self):
+        saved, _ = self.relayed([(bytes(16), time.time()), (bytes(1), time.time())])
+        self.assertEqual(saved, 0)
+        self.assertEqual(self.coordinator.log.raw_records, [])
+
+    def test_raw_records_are_kept_as_a_sync_keeps_them(self):
+        self.relayed([(record(), time.time())])
+        self.assertEqual(len(self.coordinator.log.raw_records), 1)
+
+    def test_connected_counts_as_a_sync(self):
+        self.relayed([], battery=80, status=bytes.fromhex("80200000"))
+        coordinator = self.coordinator
+        self.assertEqual((coordinator.firmware, coordinator.battery, coordinator.charge), ("90.11", 80, "charging"))
+        self.assertIsNotNone(coordinator.last_sync)
+        self.assertIsNotNone(coordinator.last_charged)
+        self.assertFalse(coordinator._due())
+
+    def test_late_records_from_a_phone_no_longer_connected_change_nothing_else(self):
+        saved, writes = self.relayed([(record(), time.time() - 3600)], connected=False, battery=80)
+        self.assertEqual((saved, writes), (1, []))
+        self.assertIsNone(self.coordinator.last_sync)
+        self.assertIsNone(self.coordinator.battery)
+        self.assertTrue(self.coordinator._due())
+
+    def test_no_writes_with_reminders_off(self):
+        self.assertEqual(self.relayed([])[1], [])
+
+    def test_the_reminder_writes_count_the_sips_just_handed_over(self):
+        self.entry.options = {"manage_reminders": True}
+        with mock.patch.object(self.coordinator, "_now_seconds", return_value=3600):
+            _saved, writes = self.relayed([(record(), time.time())])
+        expected = module.protocol.reminder_writes(
+            self.coordinator._glow(), self.FIRMWARE, 621, self.coordinator.total_today(), 3600
+        )
+        self.assertEqual(writes, expected)
+        self.assertEqual(writes[0][1], module.protocol.day_total_command(155.2, self.FIRMWARE))
+
+    def test_unsupported_firmware_saves_nothing(self):
+        with self.assertRaises(module.session.UnsupportedBottle):
+            asyncio.run(
+                self.coordinator.async_relayed(
+                    module.protocol.Firmware.parse(b"105.0"),
+                    [(module.protocol.parse_packet(record()), time.time())],
+                    connected=True,
+                )
+            )
+        self.assertEqual(self.coordinator.log.sips, [])
+
+    def test_it_waits_for_a_sync_that_is_running(self):
+        async def scenario():
+            await self.coordinator._lock.acquire()
+            task = asyncio.ensure_future(self.coordinator.async_relayed(self.FIRMWARE, [], connected=True))
+            await asyncio.sleep(0)
+            self.assertFalse(task.done())
+            self.coordinator._lock.release()
+            await task
+
+        asyncio.run(scenario())
+
+
+class RelayWebhookTest(Base):
+    """The address a phone calls: there only while the option is on, and it answers each step."""
+
+    def setUp(self):
+        super().setUp()
+        self.entry.runtime_data = self.coordinator
+        self.entry.data["webhook_id"] = "secret"
+        patcher = mock.patch.object(relay_webhook, "webhook")
+        self.webhook = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def call(self, body):
+        request = mock.Mock()
+        if isinstance(body, Exception):
+            request.json = mock.AsyncMock(side_effect=body)
+        else:
+            request.json = mock.AsyncMock(return_value=body)
+        response = asyncio.run(relay_webhook._async_handle(self.entry, mock.Mock(), "secret", request))
+        return response.status, json.loads(response.body)
+
+    def test_off_by_default(self):
+        relay_webhook.async_update(mock.Mock(), self.entry)
+        self.webhook.async_register.assert_not_called()
+
+    def test_registered_while_the_option_is_on_and_removed_when_it_goes_off(self):
+        self.entry.options = {"phone_relay": True}
+        relay_webhook.async_update(mock.Mock(), self.entry)
+        self.assertEqual(self.webhook.async_register.call_args.args[3], "secret")
+        self.assertEqual(self.webhook.async_register.call_args.kwargs["allowed_methods"], ("POST",))
+        self.entry.options = {}
+        self.webhook.reset_mock()
+        relay_webhook.async_update(mock.Mock(), self.entry)
+        self.webhook.async_unregister.assert_called_once()
+        self.webhook.async_register.assert_not_called()
+
+    def test_nothing_to_do_before_an_address_exists(self):
+        del self.entry.data["webhook_id"]
+        self.entry.options = {"phone_relay": True}
+        relay_webhook.async_update(mock.Mock(), self.entry)
+        self.webhook.async_register.assert_not_called()
+
+    def test_the_phone_is_told_to_stand_down_when_the_bottle_is_home(self):
+        self.heard(2)
+        self.assertEqual(self.call({"step": "check"}), (200, {"go": False, "reason": "in_range"}))
+
+    def test_the_phone_goes_ahead_when_the_bottle_is_away(self):
+        self.heard(None)
+        self.assertEqual(self.call({"step": "check"}), (200, {"go": True}))
+
+    def test_begin_gives_the_instructions(self):
+        status, reply = self.call({"step": "begin", "firmware": "90.11"})
+        self.assertEqual((status, reply["go"], reply["ask"]), (200, True, "57"))
+        self.assertEqual(self.call({"step": "begin", "firmware": "105.0"})[1]["go"], False)
+
+    def test_sips_are_saved_and_the_writes_come_back(self):
+        self.coordinator._store.async_save = mock.AsyncMock()
+        self.coordinator._update_device = mock.Mock()
+        self.entry.options = {"manage_reminders": True}
+        body = {
+            "step": "sips",
+            "firmware": "90.11",
+            "connected": True,
+            "battery": 77,
+            "commands": "80000000",
+            "records": [{"hex": record().hex(), "received": time.time()}],
+        }
+        status, reply = self.call(body)
+        self.assertEqual((status, reply["received"], reply["saved"]), (200, 1, 1))
+        self.assertEqual(len(reply["writes"]), 5 + module.protocol.SCHEDULE_SLOTS)
+        self.assertEqual((self.coordinator.battery, self.coordinator.charge), (77, "not_charging"))
+
+    def test_bad_requests_are_refused_and_save_nothing(self):
+        for body in (
+            ValueError("not json"),
+            ["a list"],
+            {"step": "nonsense"},
+            {"step": "begin"},
+            {"step": "sips", "firmware": "90.11", "records": [{"hex": "zz", "received": 1}]},
+            {"step": "sips", "firmware": "105.0", "records": []},
+        ):
+            self.assertEqual(self.call(body)[0], 400, body)
+        self.assertEqual(self.coordinator.log.sips, [])
+
+
+class RelayOptionsTest(unittest.TestCase):
+    """Turning the relay on shows its address, made once and kept."""
+
+    OPTIONS = {**DEFAULTS, "phone_relay": True}
+
+    def flow(self, data):
+        flow = config_flow.HidrateOptionsFlow()
+        flow.hass = mock.Mock()
+        entry = SimpleNamespace(data=data, options={})
+        flow.hass.config_entries.async_update_entry = lambda _entry, data: setattr(entry, "data", data)
+        patcher = mock.patch.object(config_flow.HidrateOptionsFlow, "config_entry", entry, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return flow, entry
+
+    def test_off_saves_straight_away(self):
+        flow, entry = self.flow({"address": ADDRESS})
+        result = asyncio.run(flow.async_step_init({**DEFAULTS}))
+        self.assertEqual(result["type"], "create_entry")
+        self.assertNotIn("webhook_id", entry.data)
+
+    def test_on_makes_an_address_shows_it_then_saves(self):
+        flow, entry = self.flow({"address": ADDRESS})
+        with (
+            mock.patch.object(config_flow.webhook, "async_generate_id", return_value="made"),
+            mock.patch.object(
+                config_flow.relay_webhook, "address_for", return_value="https://example.invalid/api/webhook/made"
+            ),
+        ):
+            shown = asyncio.run(flow.async_step_init(dict(self.OPTIONS)))
+        self.assertEqual((shown["type"], shown["step_id"]), ("form", "phone_relay"))
+        self.assertIn("made", shown["description_placeholders"]["address"])
+        self.assertEqual(entry.data, {"address": ADDRESS, "webhook_id": "made"})
+        saved = asyncio.run(flow.async_step_phone_relay({}))
+        self.assertEqual((saved["type"], saved["data"]), ("create_entry", self.OPTIONS))
+
+    def test_an_address_already_made_is_kept(self):
+        flow, entry = self.flow({"address": ADDRESS, "webhook_id": "kept"})
+        with mock.patch.object(config_flow.relay_webhook, "address_for", side_effect=lambda _hass, made: made):
+            shown = asyncio.run(flow.async_step_init(dict(self.OPTIONS)))
+        self.assertEqual(shown["description_placeholders"]["address"], "kept")
+        self.assertEqual(entry.data["webhook_id"], "kept")
 
 
 if __name__ == "__main__":
