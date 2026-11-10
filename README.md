@@ -140,7 +140,7 @@ in range. While reminders are off, changing the others sends nothing to the bott
 | Glow when the goal is reached | On | |
 | Bottle size | 621 mL | What the bottle holds filled to its line, which can be more than the size it's sold as. Sips and `Water left` are shares of it. To check yours, pour a measured amount out of a full bottle, sync, and multiply the size by what you poured over what it read |
 | Minutes between syncs | 30 | More often is kinder to reminders and harder on the battery. On its charger it's at most 5 |
-| Let a phone read the bottle away from home | Off | For the [phone relay](docs/phone-relay.md). The next screen shows the address to give the app. Seen working on one bottle with one phone, and not yet with the phone's screen off |
+| Let a phone read the bottle away from home | Off | For the [phone relay](docs/phone-relay.md). The next screen shows the address to give the app. Seen working on one bottle with one phone when synced from the app. Its 30-minute runs didn't happen with the phone's screen off |
 
 ## Bottle compatibility
 

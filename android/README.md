@@ -4,7 +4,7 @@ A small Android app that reads a bottle while it's away from home and hands the 
 integration in Home Assistant. What it does and how to set it up:
 [docs/phone-relay.md](../docs/phone-relay.md).
 
-Seen working once, on one bottle and one phone. What has and hasn't been seen is at the top of that page.
+Seen working on one bottle and one phone when synced from the app; its scheduled runs didn't happen with the screen off. What has and hasn't been seen is at the top of that page.
 
 ## Building
 

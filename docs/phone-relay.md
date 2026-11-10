@@ -11,9 +11,17 @@ the times they were drunk, an hour earlier, and the reminder writes went through
 scheduled run, a minute later with the app open, also synced. Checked afterwards in Home
 Assistant's store: each of the three was saved once, they sit in an unbroken run with the sips Home
 Assistant read itself before and after, and the day's total is their sum. Once the bottle was home
-again, Home Assistant read the next two sips itself, with the app's switch left on. **Not seen
-yet:** a scheduled run with the phone's screen off, the app reporting that it stood down at home,
-records delivered late after a lost connection, firmware that wants an
+again, Home Assistant read the next two sips itself, with the app's switch left on, and the app's
+next run logged that the bottle was at home and left it alone.
+
+**Seen not working: scheduled runs with the screen off.** After those first two runs the app ran
+nothing for two and a half hours, where five runs were due, and a sip taken in that time waited
+for the bottle to get home. Android had moved the app to its "rare" standby bucket, which holds
+background work back for hours. Setting the app's battery use to **Unrestricted** in Android's
+settings should lift that, but it's untested. Until this is fixed, count on the relay only when
+you open the app and press sync.
+
+**Not seen yet:** records delivered late after a lost connection, firmware that wants an
 acknowledgement after each sip, and what it costs the phone's battery. Everything else rests on
 tests with a fake bottle.
 
