@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant, callback
 
 from . import relay, session
 from .const import CONF_PHONE_RELAY, CONF_WEBHOOK_ID, DOMAIN
+from .coordinator import Unloading
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,8 +50,11 @@ def address_for(hass: HomeAssistant, webhook_id: str) -> str:
         return webhook.async_generate_path(webhook_id)
 
 
-def _refused(reason: str) -> web.Response:
-    return web.json_response({"error": reason}, status=400)
+def _refused(reason: str, record: int | None = None) -> web.Response:
+    body: dict[str, Any] = {"error": reason}
+    if record is not None:
+        body["record"] = record
+    return web.json_response(body, status=400)
 
 
 async def _async_handle(
@@ -85,6 +89,11 @@ async def _async_handle(
             return web.json_response(
                 {"received": len(records), "saved": saved, "writes": relay.writes_reply(writes)}
             )
-    except (relay.BadRequest, session.UnsupportedBottle) as err:
+    except relay.BadRequest as err:
+        return _refused(str(err), err.record)
+    except session.UnsupportedBottle as err:
         return _refused(str(err))
+    except Unloading as err:
+        # Not a refusal: the phone keeps its records and brings them back on its next run.
+        return web.json_response({"error": str(err)}, status=503)
     return _refused("Unknown step")

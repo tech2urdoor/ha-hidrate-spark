@@ -84,35 +84,63 @@ class Relay(
         } catch (err: IOException) {
             connected = false
         }
-
-        val sent = outbox.all()
-        val body = sipsBody(sent, firmware, connected)
-        battery?.let { body.put("battery", it) }
-        status?.let { body.put("commands", hex(it)) }
-        val reply = try {
-            home.post(body)
-        } catch (err: IOException) {
-            return "Read ${sent.size} records and kept them until Home Assistant can be reached"
+        try {
+            keepStragglers(link, firmware)
+            return finish(link, firmware, connected, battery, status)
+        } finally {
+            // Whatever turned up during the talk with Home Assistant goes on the next run.
+            keepStragglers(link, firmware)
         }
-        val saved = settle(reply, sent)
-            ?: return "Home Assistant didn't take ${sent.size} records (${reply.code}), so they're kept"
-        if (!connected) return "Lost the bottle part-way. $saved new sips reached Home Assistant"
+    }
 
-        val writes = reply.body?.optJSONArray("writes") ?: JSONArray()
+    private fun finish(link: Link, firmware: String, connected: Boolean, battery: Int?, status: ByteArray?): String {
+        val handed = try {
+            handOver(firmware, connected) { body ->
+                battery?.let { body.put("battery", it) }
+                status?.let { body.put("commands", hex(it)) }
+            }
+        } catch (err: IOException) {
+            return "Read ${outbox.all().size} records and kept them until Home Assistant can be reached"
+        }
+        val aside = handed.setAside()
+        val reply = handed.reply
+            ?: return "Home Assistant didn't take ${outbox.all().size} records ${handed.problem}, so they're kept$aside"
+        val saved = handed.saved
+        if (!connected) return "Lost the bottle part-way. $saved new sips reached Home Assistant$aside"
+
+        val writes = reply.optJSONArray("writes") ?: JSONArray()
         try {
             for (index in 0 until writes.length()) {
                 val write = writes.getJSONObject(index)
                 val characteristic = UUID.fromString(write.getString("characteristic"))
                 // Whatever the reply says, nothing is written anywhere but these two.
                 if (characteristic != COMMANDS && characteristic != SCHEDULE) {
-                    return "Synced, $saved new sips. Stopped at a write to somewhere unexpected"
+                    return "Synced, $saved new sips. Stopped at a write to somewhere unexpected$aside"
                 }
                 link.write(characteristic, unhex(write.getString("hex")))
             }
         } catch (err: Exception) {
-            return "Synced, $saved new sips. The reminders weren't refreshed: ${err.message}"
+            return "Synced, $saved new sips. The reminders weren't refreshed: ${err.message}$aside"
         }
-        return "Synced, $saved new sips"
+        return "Synced, $saved new sips$aside"
+    }
+
+    /**
+     * Records the bottle sent after the reading stopped waiting for them. They're kept and not
+     * acknowledged, so a bottle that wants an acknowledgement offers them again, and a second copy
+     * counts once.
+     */
+    private fun keepStragglers(link: Link, firmware: String) {
+        try {
+            while (true) {
+                val notification = link.next(STRAGGLER_SECONDS) ?: break
+                if (!holdsNothing(notification.value)) {
+                    outbox.add(Record(hex(notification.value), notification.received, firmware))
+                }
+            }
+        } catch (err: IOException) {
+            // The bottle has gone, and with it anything it hadn't sent yet.
+        }
     }
 
     private fun takeSips(link: Link, firmware: String, begin: JSONObject) {
@@ -142,20 +170,50 @@ class Relay(
     private fun deliverLate(): String {
         val waiting = outbox.all()
         if (waiting.isEmpty()) return ""
-        val reply = home.post(sipsBody(waiting, waiting.first().firmware, connected = false))
-        val saved = settle(reply, waiting) ?: return ""
-        return ". $saved sips from earlier were handed over"
+        val handed = handOver(waiting.first().firmware, connected = false)
+        val aside = handed.setAside()
+        if (handed.reply == null) {
+            return ". ${outbox.all().size} records from earlier weren't taken ${handed.problem}, so they're kept$aside"
+        }
+        return ". ${handed.saved} sips from earlier were handed over$aside"
     }
 
-    /** Null if Home Assistant didn't answer as the relay does, and then nothing is removed. */
-    private fun settle(reply: Reply, sent: List<Record>): Int? {
-        if (reply.code == 400) {
-            outbox.setAside(sent)
-            return 0
+    /** `reply` is Home Assistant's last answer, or null if it stopped taking records, and then `problem` says why. */
+    private class Handed(val saved: Int, val refused: Int, val reply: JSONObject?, val problem: String) {
+        fun setAside(): String =
+            if (refused == 0) "" else ". $refused records Home Assistant couldn't use were set aside"
+    }
+
+    /**
+     * Sends what's in the outbox, a batch at a time. A record leaves the outbox when Home Assistant
+     * confirms the batch it was in. One that Home Assistant points at as unusable is set aside by
+     * itself and the rest go again. Any other answer leaves every record where it is for the next run.
+     */
+    private fun handOver(firmware: String, connected: Boolean, extra: (JSONObject) -> Unit = {}): Handed {
+        var saved = 0
+        var refused = 0
+        while (true) {
+            val waiting = outbox.all()
+            val batch = waiting.take(BATCH)
+            val last = waiting.size <= BATCH
+            // Only the last batch speaks for the connection, so the bottle's state is set once.
+            val body = sipsBody(batch, firmware, connected && last)
+            if (last) extra(body)
+            val reply = home.post(body)
+            val answer = reply.body
+            if (reply.code == 200 && answer != null && answer.has("received")) {
+                outbox.remove(batch)
+                saved += answer.optInt("saved")
+                if (last) return Handed(saved, refused, answer, "")
+                continue
+            }
+            val reason = answer?.optString("error").orEmpty()
+            val problem = if (reason.isEmpty()) "(${reply.code})" else "(${reply.code}: $reason)"
+            val place = if (reply.code == 400 && answer != null && answer.has("record")) answer.optInt("record", -1) else -1
+            if (place !in batch.indices || refused >= MOST_SET_ASIDE) return Handed(saved, refused, null, problem)
+            outbox.setAside(listOf(batch[place]))
+            refused += 1
         }
-        val body = reply.body?.takeIf { reply.code == 200 && it.has("received") } ?: return null
-        outbox.remove(sent)
-        return body.optInt("saved")
     }
 
     private fun sipsBody(records: List<Record>, firmware: String, connected: Boolean): JSONObject {
@@ -176,6 +234,47 @@ class Relay(
 
     companion object {
         const val READ_LIMIT_SECONDS = 180.0
+
+        /** Long enough for a notification already on its way to land, and no longer. */
+        const val STRAGGLER_SECONDS = 0.2
+
+        /** Home Assistant refuses a request with more than 500 records. */
+        const val BATCH = 200
+
+        /** Past this many in one run, something is wrong with more than the odd record. */
+        const val MOST_SET_ASIDE = 20
+
+        /**
+         * The address is the only thing that lets a phone add sips, so it mustn't cross the internet
+         * in the clear. Plain http is for a home network or a private tunnel to one, and nowhere else.
+         */
+        fun safeAddress(address: String): Boolean {
+            val uri = try {
+                java.net.URI(address.trim())
+            } catch (err: java.net.URISyntaxException) {
+                return false
+            }
+            val host = uri.host?.lowercase()?.trim('[', ']') ?: return false
+            return when (uri.scheme?.lowercase()) {
+                "https" -> true
+                "http" -> privateHost(host)
+                else -> false
+            }
+        }
+
+        private fun privateHost(host: String): Boolean {
+            if (host == "localhost" || !host.contains('.') && !host.contains(':')) return true
+            if (listOf(".local", ".lan", ".home.arpa", ".internal").any { host.endsWith(it) }) return true
+            if (host.contains(':')) {
+                // IPv6: unique local (fc00::/7), link local (fe80::/10) and this device.
+                return host == "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe8")
+            }
+            val parts = host.split('.').map { it.toIntOrNull() ?: return false }
+            if (parts.size != 4 || parts.any { it !in 0..255 }) return false
+            val (a, b) = parts
+            return a == 10 || a == 127 || a == 192 && b == 168 || a == 172 && b in 16..31 ||
+                a == 169 && b == 254 || a == 100 && b in 64..127
+        }
 
         val FIRMWARE: UUID = UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb")
         val BATTERY: UUID = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")

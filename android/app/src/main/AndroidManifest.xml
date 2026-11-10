@@ -12,7 +12,8 @@
     <!-- Without this Android holds the 30-minute runs back for hours once the screen is off. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- Cleartext is allowed because a Home Assistant on the home network is often plain http. -->
+    <!-- Cleartext is allowed because a Home Assistant on the home network is often plain http.
+         The app only saves an http address that's on a private network. -->
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"

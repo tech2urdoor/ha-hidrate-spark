@@ -19,6 +19,7 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Android's Bluetooth answers through callbacks on its own threads. This turns each call into one
@@ -89,8 +90,16 @@ class GattLink private constructor() : Link {
         gatt.services.firstNotNullOfOrNull { it.getCharacteristic(characteristic) }
             ?: throw IOException("the bottle has no $characteristic")
 
+    /**
+     * Before each request, drops answers nobody is waiting for any more. One that arrives after its
+     * request timed out would otherwise be taken for the answer to the next request of the same kind.
+     */
+    private fun fresh() = answers.clear()
+
     override fun read(characteristic: UUID): ByteArray {
-        if (!gatt.readCharacteristic(find(characteristic))) throw IOException("the read couldn't start")
+        val source = find(characteristic)
+        fresh()
+        if (!gatt.readCharacteristic(source)) throw IOException("the read couldn't start")
         return await(READ).value ?: ByteArray(0)
     }
 
@@ -102,6 +111,7 @@ class GattLink private constructor() : Link {
         } else {
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         }
+        fresh()
         val started = gatt.writeCharacteristic(target, value, type)
         if (started != BluetoothStatusCodes.SUCCESS) throw IOException("the write couldn't start ($started)")
         await(WRITE)
@@ -118,6 +128,7 @@ class GattLink private constructor() : Link {
         } else {
             BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
         }
+        fresh()
         val started = gatt.writeDescriptor(descriptor, value)
         if (started != BluetoothStatusCodes.SUCCESS) throw IOException("notifications couldn't be turned on ($started)")
         await(DESCRIPTOR)
@@ -162,7 +173,8 @@ class GattLink private constructor() : Link {
                 link.await(CONNECTED, CONNECT_SECONDS)
                 if (!link.gatt.discoverServices()) throw IOException("the bottle's services couldn't be looked up")
                 link.await(SERVICES)
-            } catch (err: IOException) {
+            } catch (err: Exception) {
+                // Any failure, a withdrawn permission included, or the connection is left open.
                 link.close()
                 throw err
             }
@@ -175,18 +187,36 @@ class GattLink private constructor() : Link {
             if (adapter == null || !adapter.isEnabled) throw IOException("Bluetooth is off")
             val scanner = adapter.bluetoothLeScanner ?: throw IOException("Bluetooth is off")
             val heard = LinkedBlockingQueue<ScanResult>()
+            val failure = AtomicInteger(0)
             val listener = object : ScanCallback() {
                 override fun onScanResult(callbackType: Int, result: ScanResult) {
                     heard.offer(result)
                 }
+
+                override fun onScanFailed(errorCode: Int) {
+                    failure.set(errorCode)
+                }
+            }
+            // A scan Android wouldn't start hears nothing, which isn't the same as no bottle nearby.
+            fun check() {
+                if (failure.get() != 0) throw IOException("Android wouldn't scan for the bottle (${failure.get()})")
             }
             val filter = ScanFilter.Builder()
             if (address != null) filter.setDeviceAddress(address) else filter.setServiceUuid(ParcelUuid(Relay.SERVICE))
             val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
             scanner.startScan(listOf(filter.build()), settings, listener)
             try {
-                if (address != null) return listOfNotNull(heard.poll(seconds, TimeUnit.SECONDS))
+                if (address != null) {
+                    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds)
+                    while (true) {
+                        check()
+                        val left = deadline - System.nanoTime()
+                        if (left <= 0) return emptyList()
+                        heard.poll(minOf(left, TimeUnit.MILLISECONDS.toNanos(250)), TimeUnit.NANOSECONDS)?.let { return listOf(it) }
+                    }
+                }
                 Thread.sleep(TimeUnit.SECONDS.toMillis(seconds))
+                check()
                 return heard.distinctBy { it.device.address }
             } finally {
                 scanner.stopScan(listener)

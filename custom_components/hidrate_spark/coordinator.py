@@ -49,9 +49,17 @@ _LOGGER = logging.getLogger(__name__)
 CONNECTION_ERRORS = (BleakError, TimeoutError, EOFError, OSError)
 
 
+class Unloading(HomeAssistantError):
+    """The integration is being reloaded or removed, so nothing more is read, written or saved from here."""
+
+
 def _missing_characteristic(err: BleakError) -> bool:
     """The bottle has it, so this means the service table was cached incomplete."""
-    return isinstance(err, BleakCharacteristicNotFoundError) or "was not found" in str(err)
+    if isinstance(err, BleakCharacteristicNotFoundError):
+        return True
+    # A bottle that has gone can also be reported as "not found", and looking again won't bring it back.
+    text = str(err).lower()
+    return "characteristic" in text and "was not found" in text
 
 
 def _seconds_of_day(value: str) -> int:
@@ -66,7 +74,8 @@ class HidrateCoordinator:
         self.hass = hass
         self.entry = entry
         self.address: str = entry.data[CONF_ADDRESS]
-        self.log = SipLog(dt_util.DEFAULT_TIME_ZONE)
+        # Looked up at each sip, so a change of Home Assistant's time zone is followed without a reload.
+        self.log = SipLog(lambda: dt_util.DEFAULT_TIME_ZONE)
         self.battery: int | None = None
         # One of protocol.CHARGE_STATES, as of the last sync that could read it.
         self.charge: str | None = None
@@ -88,6 +97,7 @@ class HidrateCoordinator:
         self._last_attempt: float | None = None
         self._succeeded = False
         self._unsupported = False
+        self._closed = False
 
     def option(self, key: str) -> Any:
         return self.entry.options.get(key, DEFAULTS[key])
@@ -247,10 +257,14 @@ class HidrateCoordinator:
             dt_util.utcnow() - self.last_charged
         ).total_seconds() < CHARGER_GRACE_SECONDS
 
-    async def async_wait_until_idle(self) -> None:
-        """Lets a running session finish, so its sips are saved before the store can be loaded again."""
+    async def async_close(self) -> None:
+        """Lets a running session finish, so its sips are saved before the store can be loaded again.
+
+        Whatever was waiting behind that session finds this closed and saves nothing: by then another
+        coordinator may have loaded the store, and a save from here would overwrite what it read.
+        """
         async with self._lock:
-            pass
+            self._closed = True
 
     @callback
     def async_set_option(self, key: str, value: Any) -> None:
@@ -319,6 +333,8 @@ class HidrateCoordinator:
     async def async_sync(self) -> None:
         """Connect, take the sips, write the reminders. Errors are recorded, never raised."""
         async with self._lock:
+            if self._closed:
+                return
             self._last_attempt = time.monotonic()
             took_any = False
             keep_raw = False
@@ -413,6 +429,8 @@ class HidrateCoordinator:
         if not firmware.supported:
             raise session.UnsupportedBottle(f"Firmware {firmware.raw} isn't a kind this integration can read")
         async with self._lock:
+            if self._closed:
+                raise Unloading("The integration is reloading, so send these again shortly")
             taken = 0
             try:
                 for packet, received in records:
@@ -465,6 +483,8 @@ class HidrateCoordinator:
     async def _async_action(self, work: Callable[[Any], Awaitable[Any]]) -> Any:
         """For something the user asked for: they should see why it failed."""
         async with self._lock:
+            if self._closed:
+                raise Unloading("The integration is reloading, so try again shortly")
             try:
                 return await self._session(work)
             except CONNECTION_ERRORS as err:
@@ -508,7 +528,8 @@ class HidrateCoordinator:
 
     async def async_mark(self, full: bool) -> None:
         """Remembers this reading as empty or full. Stays in Home Assistant, nothing goes to the bottle."""
-        weight = await self._async_action(session.read_weight)
+        # A read the bottle refuses is said as that, rather than as a bottle that wouldn't keep still.
+        weight = await self._async_action(lambda client: session.read_weight(client, must=True))
         if weight is None:
             raise HomeAssistantError("Couldn't get a steady reading. Stand the bottle upright and try again")
         if full:

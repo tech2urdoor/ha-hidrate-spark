@@ -465,6 +465,17 @@ class WeightTest(unittest.TestCase):
     def test_too_short_is_unknown(self):
         self.assertIsNone(p.weight_reading(b"\x8a"))
 
+    def test_a_refused_read_is_nothing_in_a_sync_and_an_error_when_asked_for(self):
+        client = FakeClient()
+
+        async def read_gatt_char(uuid):
+            raise OSError("refused")
+
+        client.read_gatt_char = read_gatt_char
+        self.assertIsNone(asyncio.run(s.read_weight(client, gap_seconds=0)))
+        with self.assertRaises(OSError):
+            asyncio.run(s.read_weight(client, gap_seconds=0, must=True))
+
     def test_a_still_bottle_gives_the_later_read(self):
         self.assertEqual(self.read(b"\x8c\x06", b"\x8c\x05"), 35845)
 
@@ -814,6 +825,15 @@ class SipLogTest(unittest.TestCase):
         self.at = datetime(2026, 11, 7, 10, 0, tzinfo=LOCAL)
         self.packet = p.parse_packet(sip_packet())
 
+    def test_the_zone_can_be_asked_for_each_time_so_a_change_is_followed(self):
+        zones = [ZoneInfo("Pacific/Auckland"), ZoneInfo("America/Los_Angeles")]
+        log = SipLog(lambda: zones[0])
+        at = datetime(2026, 3, 10, 5, 0, tzinfo=timezone.utc)
+        log.add(p.parse_packet(sip_packet(start=400, stop=300)), at, 600)
+        zones[0] = zones[1]
+        log.add(p.parse_packet(sip_packet(start=300, stop=200)), at + timedelta(minutes=10), 600)
+        self.assertEqual(sorted(log.daily), ["2026-03-09", "2026-03-10"])
+
     def test_adds_a_sip(self):
         sip = self.log.add(self.packet, self.at, 621)
         self.assertEqual(sip.ml, 155.2)
@@ -1042,6 +1062,40 @@ class RelayTest(unittest.TestCase):
             r.records_from({"records": [good] * (r.MAX_RECORDS + 1)}, self.NOW)
         with self.assertRaises(r.BadRequest):
             r.records_from({"records": "text"}, self.NOW)
+
+    def test_a_record_at_fault_is_pointed_at_so_the_phone_can_put_it_aside(self):
+        good = {"hex": sip_packet().hex(), "received": self.NOW}
+        for bad in (
+            "text",
+            {"hex": "zz", "received": self.NOW},
+            {"hex": "00" * 65, "received": self.NOW},
+            {"hex": sip_packet().hex()},
+            {"hex": sip_packet().hex(), "received": 0},
+        ):
+            with self.assertRaises(r.BadRequest, msg=bad) as caught:
+                r.records_from({"records": [good, good, bad, good]}, self.NOW)
+            self.assertEqual(caught.exception.record, 2, bad)
+
+    def test_a_clock_thats_ahead_points_at_no_record_because_the_record_may_be_fine(self):
+        ahead = {"hex": sip_packet().hex(), "received": self.NOW + r.CLOCK_AHEAD_SECONDS + 1}
+        with self.assertRaises(r.BadRequest) as caught:
+            r.records_from({"records": [ahead]}, self.NOW)
+        self.assertIsNone(caught.exception.record)
+        with self.assertRaises(r.BadRequest) as caught:
+            r.records_from({"records": [ahead] * (r.MAX_RECORDS + 1)}, self.NOW)
+        self.assertIsNone(caught.exception.record)
+
+    def test_a_sip_from_before_the_log_begins_is_refused_rather_than_counted_on_every_retry(self):
+        keep = r.KEEP_SIPS_DAYS * 86400
+        inside = {"hex": sip_packet(seconds=60).hex(), "received": self.NOW - keep + 120}
+        self.assertEqual(len(r.records_from({"records": [inside]}, self.NOW)), 1)
+        # Read just now, but drunk before the log's first day.
+        long_ago = {"hex": sip_packet(seconds=keep + 60).hex(), "received": self.NOW}
+        stale_clock = {"hex": sip_packet().hex(), "received": self.NOW - keep - 60}
+        for bad in (long_ago, stale_clock):
+            with self.assertRaises(r.BadRequest, msg=bad) as caught:
+                r.records_from({"records": [inside, bad]}, self.NOW)
+            self.assertEqual(caught.exception.record, 1)
 
     def test_a_phone_clock_slightly_ahead_is_allowed(self):
         row = {"hex": sip_packet().hex(), "received": self.NOW + r.CLOCK_AHEAD_SECONDS}

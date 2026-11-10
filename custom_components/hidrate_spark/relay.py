@@ -17,6 +17,7 @@ from .protocol import (
     history_command,
     parse_packet,
 )
+from .sip_log import KEEP_SIPS_DAYS
 
 IDLE_SECONDS = 10
 MAX_RECORDS = 500
@@ -29,7 +30,15 @@ RELAY_WRITES = frozenset({COMMANDS, SCHEDULE})
 
 
 class BadRequest(ValueError):
-    """The phone sent something that can't be used. Nothing was saved from it."""
+    """The phone sent something that can't be used. Nothing was saved from it.
+
+    `record` is the place in the list of the one record that's at fault, when it's the record itself
+    and sending it again could never work. The phone can then put that one aside and keep the rest.
+    """
+
+    def __init__(self, reason: str, record: int | None = None) -> None:
+        super().__init__(reason)
+        self.record = record
 
 
 def firmware_from(body: dict[str, Any]) -> Firmware:
@@ -60,21 +69,28 @@ def records_from(body: dict[str, Any], now: float) -> list[tuple[Packet, float]]
     if not isinstance(rows, list) or len(rows) > MAX_RECORDS:
         raise BadRequest("records isn't a list of a sensible length")
     records = []
-    for row in rows:
+    oldest = now - KEEP_SIPS_DAYS * 86400
+    for place, row in enumerate(rows):
         if not isinstance(row, dict):
-            raise BadRequest("a record isn't an object")
+            raise BadRequest("a record isn't an object", place)
         received = row.get("received")
         if isinstance(received, bool) or not isinstance(received, (int, float)):
-            raise BadRequest("a record has no time")
-        if not 0 < received <= now + CLOCK_AHEAD_SECONDS:
-            raise BadRequest("a record's time is in the future")
+            raise BadRequest("a record has no time", place)
+        if not received <= now + CLOCK_AHEAD_SECONDS:
+            # Not this record's fault: it may be fine once the phone's clock is right, so it isn't pointed at.
+            raise BadRequest("a record's time is in the future, so check the phone's clock")
         try:
             data = bytes.fromhex(row.get("hex", ""))
         except (TypeError, ValueError) as err:
-            raise BadRequest("a record isn't hex") from err
+            raise BadRequest("a record isn't hex", place) from err
         if not data or len(data) > MAX_RECORD_BYTES:
-            raise BadRequest("a record is the wrong length")
-        records.append((parse_packet(data), float(received)))
+            raise BadRequest("a record is the wrong length", place)
+        packet = parse_packet(data)
+        # A sip older than the log keeps would be added to its day and forgotten at once, and then
+        # nothing could tell a second copy of it from a new sip.
+        if received - max(0, packet.seconds_ago) < oldest:
+            raise BadRequest("a record is from too long ago to place", place)
+        records.append((packet, float(received)))
     return records
 
 

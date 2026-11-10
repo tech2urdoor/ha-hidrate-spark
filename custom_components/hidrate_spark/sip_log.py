@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import bisect
 from dataclasses import dataclass
+from collections.abc import Callable
 from datetime import date, datetime, timedelta, tzinfo
 from typing import Any
 
@@ -42,8 +43,9 @@ class Refill:
 class SipLog:
     """Sips for 90 days, daily totals for good. Both are saved, so a restart loses nothing."""
 
-    def __init__(self, tz: tzinfo) -> None:
-        self._tz = tz
+    def __init__(self, tz: tzinfo | Callable[[], tzinfo]) -> None:
+        # Either the zone, or somewhere to ask for it each time, for a zone that can change.
+        self._zone: Callable[[], tzinfo] = tz if callable(tz) else (lambda: tz)
         self.sips: list[Sip] = []
         self.daily: dict[str, float] = {}
         # Records whose level rose. They aren't sips, but they do say how full the bottle is.
@@ -70,7 +72,7 @@ class SipLog:
             return None
         sip = Sip(at, round(ml, 1), packet.raw_key)
         bisect.insort(self.sips, sip)
-        day = at.astimezone(self._tz).date().isoformat()
+        day = at.astimezone(self._zone()).date().isoformat()
         self.daily[day] = round(self.daily.get(day, 0.0) + sip.ml, 1)
         return sip
 

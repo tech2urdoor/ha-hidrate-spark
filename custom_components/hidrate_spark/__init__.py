@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
@@ -29,7 +29,11 @@ ATTR_WEIGHT_SECONDS = "weight_seconds"
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     async def _probe(call: ServiceCall) -> ServiceResponse:
-        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        entries = [
+            entry
+            for entry in hass.config_entries.async_entries(DOMAIN)
+            if entry.state is ConfigEntryState.LOADED
+        ]
         if not entries:
             raise HomeAssistantError("No bottle is set up")
         if chosen := call.data.get(ATTR_BOTTLE):
@@ -78,6 +82,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         return False
     # A pressed button's session isn't one the unload cancels. Left running beside a reloaded
-    # coordinator, its save would overwrite sips the new one had read.
-    await entry.runtime_data.async_wait_until_idle()
+    # coordinator, its save would overwrite sips the new one had read. Anything still waiting its
+    # turn behind that session is turned away rather than run after the reload.
+    await entry.runtime_data.async_close()
     return True

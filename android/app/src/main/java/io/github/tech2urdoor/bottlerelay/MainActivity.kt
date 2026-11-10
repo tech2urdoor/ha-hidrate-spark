@@ -97,7 +97,7 @@ class MainActivity : Activity() {
 
     private fun saveAddress() {
         val typed = address.text.toString().trim()
-        if (!typed.startsWith("https://") && !typed.startsWith("http://")) {
+        if (!Relay.safeAddress(typed)) {
             say(R.string.bad_address)
             return
         }
@@ -115,9 +115,11 @@ class MainActivity : Activity() {
         choose.isEnabled = false
         choose.setText(R.string.choosing)
         thread {
+            var problem: String? = null
             val found = try {
                 GattLink.scan(this, 8)
             } catch (err: Exception) {
+                problem = err.message ?: err.javaClass.simpleName
                 emptyList()
             }
             // Some bottles pad the name they advertise with zero bytes.
@@ -127,7 +129,8 @@ class MainActivity : Activity() {
                 choose.setText(R.string.choose)
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (found.isEmpty()) {
-                    say(R.string.none_found)
+                    // Bluetooth being off, or a scan Android refused, isn't a bottle out of earshot.
+                    if (problem != null) Toast.makeText(this, problem, Toast.LENGTH_LONG).show() else say(R.string.none_found)
                     return@runOnUiThread
                 }
                 AlertDialog.Builder(this)

@@ -194,6 +194,13 @@ class StaleServicesTest(Base):
             except Exception as err:  # noqa: BLE001
                 return err, clients
 
+    def test_a_bottle_that_has_gone_isnt_taken_for_a_missing_characteristic(self):
+        gone = module.BleakError("Device with address AA:BB:CC:DD:EE:FF was not found")
+        result, clients = self.run_with([gone, "synced"])
+        self.assertIs(result, gone)
+        self.assertEqual(len(clients), 1)
+        clients[0].clear_cache.assert_not_called()
+
     def test_cleared_and_tried_again(self):
         from bleak.exc import BleakCharacteristicNotFoundError
 
@@ -385,6 +392,35 @@ class UnloadTest(Base):
                 self.assertFalse(await self.unload(False))
 
         asyncio.run(run())
+        self.assertFalse(self.coordinator._closed)
+
+    def test_what_was_waiting_behind_the_session_is_turned_away_and_saves_nothing(self):
+        self.coordinator._store.async_save = mock.AsyncMock()
+        firmware = module.protocol.Firmware.parse(b"90.11")
+        records = [(module.protocol.parse_packet(record()), time.time())]
+
+        async def run():
+            await self.coordinator._lock.acquire()
+            unload = asyncio.create_task(self.unload(True))
+            await asyncio.sleep(0)
+            # Queued behind the unload, as a phone's request or a pressed button can be.
+            relayed = asyncio.create_task(self.coordinator.async_relayed(firmware, records, connected=True))
+            pressed = asyncio.create_task(self.coordinator.async_find())
+            sync = asyncio.create_task(self.coordinator.async_sync())
+            await asyncio.sleep(0)
+            self.coordinator._lock.release()
+            self.assertTrue(await unload)
+            with self.assertRaises(module.Unloading):
+                await relayed
+            with self.assertRaises(module.Unloading):
+                await pressed
+            await sync
+
+        with mock.patch.object(self.coordinator, "_session", mock.AsyncMock()) as session:
+            asyncio.run(run())
+        session.assert_not_called()
+        self.coordinator._store.async_save.assert_not_called()
+        self.assertEqual(self.coordinator.log.sips, [])
 
 
 class ColourTest(Base):
@@ -565,6 +601,18 @@ class LevelSensorsTest(Base):
         self.assertEqual(self.coordinator._as_dict()["mark_full"], 35845)
         client.write_gatt_char.assert_not_called()
 
+    def test_a_mark_the_bottle_refuses_to_be_read_for_says_so(self):
+        self.coordinator.mark_full = 2000
+        client = mock.Mock(read_gatt_char=mock.AsyncMock(side_effect=module.BleakError("Read not permitted")))
+
+        async def session(work):
+            return await work(client)
+
+        with mock.patch.object(self.coordinator, "_session", session):
+            with self.assertRaisesRegex(module.HomeAssistantError, "Read not permitted"):
+                asyncio.run(self.coordinator.async_mark(full=True))
+        self.assertEqual(self.coordinator.mark_full, 2000)
+
     def test_an_unsteady_mark_tells_the_user_and_keeps_the_old_one(self):
         self.coordinator.mark_full = 2000
 
@@ -710,7 +758,7 @@ class BermudaSetupTest(unittest.TestCase):
 class ProbeChoiceTest(unittest.TestCase):
     def run_probe(self, entries, **data):
         hass = mock.Mock()
-        hass.config_entries.async_loaded_entries.return_value = entries
+        hass.config_entries.async_entries.return_value = entries
         asyncio.run(integration.async_setup(hass, {}))
         handler = hass.services.async_register.call_args.args[2]
         return asyncio.run(handler(SimpleNamespace(data=data)))
@@ -718,11 +766,20 @@ class ProbeChoiceTest(unittest.TestCase):
     @staticmethod
     def entry(entry_id):
         return SimpleNamespace(
-            entry_id=entry_id, runtime_data=SimpleNamespace(async_probe=mock.AsyncMock(return_value=entry_id))
+            entry_id=entry_id,
+            state=integration.ConfigEntryState.LOADED,
+            runtime_data=SimpleNamespace(async_probe=mock.AsyncMock(return_value=entry_id)),
         )
 
     def test_one_bottle_needs_no_choosing(self):
         self.assertEqual(self.run_probe([self.entry("a")]), "a")
+
+    def test_a_bottle_that_didnt_load_isnt_one_to_probe(self):
+        failed = self.entry("b")
+        failed.state = integration.ConfigEntryState.SETUP_ERROR
+        self.assertEqual(self.run_probe([self.entry("a"), failed]), "a")
+        with self.assertRaisesRegex(integration.HomeAssistantError, "No bottle"):
+            self.run_probe([failed])
 
     def test_the_chosen_bottle_is_the_one_probed(self):
         self.assertEqual(self.run_probe([self.entry("a"), self.entry("b")], bottle="b"), "b")
@@ -900,6 +957,33 @@ class RelayWebhookTest(Base):
         self.assertEqual((status, reply["received"], reply["saved"]), (200, 1, 1))
         self.assertEqual(len(reply["writes"]), 5 + module.protocol.SCHEDULE_SLOTS)
         self.assertEqual((self.coordinator.battery, self.coordinator.charge), (77, "not_charging"))
+
+    def test_a_refusal_points_at_the_record_at_fault(self):
+        good = {"hex": record().hex(), "received": time.time()}
+        body = {"step": "sips", "firmware": "90.11", "records": [good, {"hex": "zz", "received": 1}]}
+        status, reply = self.call(body)
+        self.assertEqual((status, reply["record"]), (400, 1))
+        ahead = {"hex": record().hex(), "received": time.time() + 3600}
+        status, reply = self.call({"step": "sips", "firmware": "90.11", "records": [ahead]})
+        self.assertEqual(status, 400)
+        self.assertNotIn("record", reply)
+        self.assertEqual(self.coordinator.log.sips, [])
+
+    def test_while_reloading_the_phone_is_told_to_keep_its_records(self):
+        self.coordinator._store.async_save = mock.AsyncMock()
+        asyncio.run(self.coordinator.async_close())
+        body = {
+            "step": "sips",
+            "firmware": "90.11",
+            "connected": True,
+            "records": [{"hex": record().hex(), "received": time.time()}],
+        }
+        status, reply = self.call(body)
+        # Neither the 200 that lets the phone drop them nor the 400 that has it put them aside.
+        self.assertEqual(status, 503)
+        self.assertIn("error", reply)
+        self.assertNotIn("received", reply)
+        self.assertEqual(self.coordinator.log.sips, [])
 
     def test_bad_requests_are_refused_and_save_nothing(self):
         for body in (

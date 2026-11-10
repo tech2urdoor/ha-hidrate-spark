@@ -31,7 +31,9 @@ records, and says which bytes to write afterwards, exactly as it would on its ow
 
 ## Setting it up
 
-1. Your Home Assistant has to be reachable from where the phone will be, at an `https` address.
+1. Your Home Assistant has to be reachable from where the phone will be, at an `https` address. The
+   app only takes a plain `http` address when it's on a private network, which is what the phone sees
+   through a VPN to your home.
 2. In Home Assistant, open the bottle's **Configure** and tick **Let a phone read the bottle away from
    home**. The next screen shows the relay address. Anyone who has it can add sips to that bottle, so
    treat it like a password.
@@ -55,12 +57,15 @@ back unchanged if you tick it again.
    asks Home Assistant how to read that firmware. Unsupported firmware stops here, before any sip.
 4. It asks the bottle for its sips. Each record is written to the phone's storage the moment it
    arrives, because a bottle hands each sip over only once.
-5. It reads the battery level and the status bytes, and sends everything to Home Assistant.
+5. It reads the battery level and the status bytes, and sends everything to Home Assistant, 200
+   records at a time if there's a long backlog.
 6. Home Assistant saves the sips, with the times they were drunk, and replies with the reminder writes
    if you have reminders on. The phone makes them and disconnects.
 
 A record leaves the phone's storage only when Home Assistant confirms it. If the internet drops
-part-way, the records go on the next run. Sending the same record twice counts once.
+part-way, the records go on the next run. Sending the same record twice counts once. A record the
+bottle sends after the phone has stopped waiting for sips is kept as well, and goes with the rest or
+on the next run.
 
 ## What the phone writes to the bottle
 
@@ -89,8 +94,17 @@ is stored. Reading stops when nothing has arrived for `idle_seconds`.
 `connected` is false when the records are from an earlier run. They're saved, and nothing else
 changes: no battery reading, no last sync time, no writes.
 
-A request that can't be used gets status 400 with `{"error": "…"}` and saves nothing. The app then
-moves those records to a `refused.jsonl` file in its storage, so they're neither lost nor retried for ever.
+A request that can't be used gets status 400 with `{"error": "…"}` and saves nothing. When one
+record is at fault and could never be used, such as one that isn't hex or is dated before the 90
+days of sips Home Assistant keeps, the reply also has `"record"`, its place in the list counting
+from 0. The app moves that one record to a `refused.jsonl` file in its storage, so it's neither lost
+nor retried for ever, sends the rest again, and says in its log how many it set aside. It stops
+after 20 in one run.
+
+Any other refusal leaves every record on the phone for the next run, and the app's log gives the
+reason. That covers a record dated more than five minutes ahead, which means the phone's clock is
+wrong and the record may be fine once it's right, and an answer from something that isn't the relay.
+While the integration is reloading, the reply is status 503, and the phone keeps its records the same way.
 
 ## iPhone: not built, and a welcome contribution
 

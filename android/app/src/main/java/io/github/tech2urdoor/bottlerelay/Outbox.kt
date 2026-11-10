@@ -4,6 +4,9 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 data class Record(val hex: String, val received: Double, val firmware: String)
 
@@ -27,9 +30,12 @@ class Outbox(private val directory: File) {
         val fresh = File(directory, "outbox.jsonl.new")
         fresh.delete()
         append(fresh, left)
-        if (!fresh.renameTo(waiting)) {
-            waiting.delete()
-            fresh.renameTo(waiting)
+        // In one step, so there's never a moment with no outbox. If it fails the old file stands,
+        // and the records it still lists are sent again, which counts once.
+        try {
+            Files.move(fresh.toPath(), waiting.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } catch (err: IOException) {
+            fresh.delete()
         }
     }
 

@@ -150,8 +150,13 @@ async def _read_serial(client: Any) -> str | None:
     return data.split(b"\0", 1)[0].decode("ascii", "replace").strip() or None
 
 
-async def read_weight(client: Any, gap_seconds: float = WEIGHT_GAP_SECONDS) -> int | None:
-    """None if it can't be read or the bottle is moving, because a reading in someone's hand isn't a level."""
+async def read_weight(
+    client: Any, gap_seconds: float = WEIGHT_GAP_SECONDS, *, must: bool = False
+) -> int | None:
+    """None if it can't be read or the bottle is moving, because a reading in someone's hand isn't a level.
+
+    With `must`, a read that fails is raised instead, for when the reading is the whole point.
+    """
     try:
         first = weight_reading(bytes(await client.read_gatt_char(WEIGHT)))
         if first is None:
@@ -159,6 +164,8 @@ async def read_weight(client: Any, gap_seconds: float = WEIGHT_GAP_SECONDS) -> i
         await asyncio.sleep(gap_seconds)
         second = weight_reading(bytes(await client.read_gatt_char(WEIGHT)))
     except Exception:  # noqa: BLE001 - a level is a bonus, so it must not cost the rest of a sync
+        if must:
+            raise
         return None
     return second if second is not None and abs(second - first) <= WEIGHT_STILL else None
 
