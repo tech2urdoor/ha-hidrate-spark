@@ -3,7 +3,11 @@ package io.github.tech2urdoor.bottlerelay
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
@@ -18,6 +22,8 @@ class MainActivity : Activity() {
     private lateinit var log: TextView
     private lateinit var sync: Button
     private lateinit var choose: Button
+    private lateinit var background: TextView
+    private lateinit var allowBackground: Button
 
     @SuppressLint("UseSwitchCompatOrMaterialCode")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +35,9 @@ class MainActivity : Activity() {
         log = findViewById(R.id.log)
         sync = findViewById(R.id.sync)
         choose = findViewById(R.id.choose)
+        background = findViewById(R.id.background)
+        allowBackground = findViewById(R.id.allow_background)
+        allowBackground.setOnClickListener { askToRunInBackground() }
 
         address.setText(settings.url)
         findViewById<Button>(R.id.save).setOnClickListener { saveAddress() }
@@ -40,7 +49,11 @@ class MainActivity : Activity() {
         periodic.setOnCheckedChangeListener { _, on ->
             settings.periodic = on
             Syncer.schedule(this, on)
+            if (on && !runsInBackground()) askToRunInBackground()
         }
+
+        // Asked again on every open, so a schedule lost to a reinstall or a restore comes back.
+        if (settings.periodic) Syncer.schedule(this, true)
 
         if (!Syncer.allowed(this)) requestPermissions(Syncer.PERMISSIONS, 0)
     }
@@ -57,6 +70,27 @@ class MainActivity : Activity() {
             getString(R.string.bottle_chosen, settings.bottleName.ifBlank { "h2o" })
         }
         log.text = settings.log
+        val free = runsInBackground()
+        background.setText(if (free) R.string.background_allowed else R.string.background_held)
+        allowBackground.visibility = if (free) View.GONE else View.VISIBLE
+    }
+
+    /** True once Android has agreed not to hold this app's background work back. */
+    private fun runsInBackground(): Boolean =
+        getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+
+    @SuppressLint("BatteryLife")
+    private fun askToRunInBackground() {
+        try {
+            startActivity(
+                Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName"),
+                ),
+            )
+        } catch (err: Exception) {
+            startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
     }
 
     private fun say(message: Int) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()

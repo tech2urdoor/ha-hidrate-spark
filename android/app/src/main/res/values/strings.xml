@@ -12,6 +12,9 @@
     <string name="none_found">No bottle heard. Stand it nearby and try again.</string>
     <string name="pick_title">Which bottle?</string>
     <string name="every_half_hour">Sync every 30 minutes</string>
+    <string name="background_held">Android may hold these runs back for hours while the screen is off.</string>
+    <string name="background_allowed">Allowed to run in the background.</string>
+    <string name="allow_background">Allow background running</string>
     <string name="sync_now">Sync now</string>
     <string name="syncing">Syncing…</string>
     <string name="needs_permission">Allow Nearby devices so the bottle can be reached.</string>

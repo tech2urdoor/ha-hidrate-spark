@@ -17,9 +17,9 @@ next run logged that the bottle was at home and left it alone.
 **Seen not working: scheduled runs with the screen off.** After those first two runs the app ran
 nothing for two and a half hours, where five runs were due, and a sip taken in that time waited
 for the bottle to get home. Android had moved the app to its "rare" standby bucket, which holds
-background work back for hours. Setting the app's battery use to **Unrestricted** in Android's
-settings should lift that, but it's untested. Until this is fixed, count on the relay only when
-you open the app and press sync.
+background work back for hours. The app now asks to be let off that, with **Allow background
+running**, but whether that brings the runs back hasn't been seen yet. Until it has, count on the
+relay only when you open the app and press sync.
 
 **Not seen yet:** records delivered late after a lost connection, firmware that wants an
 acknowledgement after each sip, and what it costs the phone's battery. Everything else rests on
@@ -38,6 +38,8 @@ records, and says which bytes to write afterwards, exactly as it would on its ow
 3. Build the app from [`android/`](../android) and install it. It needs Android 13 or later.
 4. In the app, paste the relay address and save it, choose your bottle, and turn on **Sync every 30
    minutes**. Allow **Nearby devices** when asked. It never asks for your location.
+5. Tap **Allow background running** and allow it. Android otherwise holds the 30-minute runs back
+   while the screen is off. The line under the switch says whether it's allowed.
 
 One phone relays one bottle. To stop, untick the option: the address stops working at once, and comes
 back unchanged if you tick it again.

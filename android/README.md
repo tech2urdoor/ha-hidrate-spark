@@ -32,5 +32,6 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | `Syncer.kt` | Settings, the call to Home Assistant, and the 30-minute schedule |
 | `MainActivity.kt` | The one screen |
 
-It asks for **Nearby devices** and the internet, and nothing else. It keeps the relay address, the
+It asks for **Nearby devices**, the internet, and to be left out of battery optimisation so the
+30-minute runs aren't held back, and nothing else. It keeps the relay address, the
 chosen bottle's address and name, and the last 40 results, all in the app's private storage.

@@ -9,6 +9,8 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
+    <!-- Without this Android holds the 30-minute runs back for hours once the screen is off. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Cleartext is allowed because a Home Assistant on the home network is often plain http. -->
     <application
