@@ -18,12 +18,14 @@ next run logged that the bottle was at home and left it alone.
 nothing for two and a half hours, where five runs were due, and a sip taken in that time waited
 for the bottle to get home. Android had moved the app to its "rare" standby bucket, which holds
 background work back for hours. The app now asks to be let off that, with **Allow background
-running**, but whether that brings the runs back hasn't been seen yet. Until it has, count on the
-relay only when you open the app and press sync.
+running**. With that allowed, the app's log showed a run about every 30 minutes for five hours, each
+one finding the bottle at home and leaving it alone. Whether the screen was off and the phone
+unplugged through those wasn't checked, and no scheduled run has yet been seen reading a bottle
+away from home. Until one has, count on the relay only when you open the app and press sync.
 
-**Not seen yet:** records delivered late after a lost connection, firmware that wants an
-acknowledgement after each sip, and what it costs the phone's battery. Everything else rests on
-tests with a fake bottle.
+**Not seen yet:** records delivered late after a lost connection, a record refused and set aside,
+a backlog sent in batches, firmware that wants an acknowledgement after each sip, and what it costs
+the phone's battery. Everything else rests on tests with a fake bottle.
 
 The phone decides nothing. It doesn't know what a record means, how big your bottle is or what your
 goal is. Home Assistant tells it which byte asks for the sips, works out the sips from the raw
