@@ -5,8 +5,13 @@ small Android app for a phone that stays near the bottle when it's out: it conne
 passes what it reads to Home Assistant over the internet, and makes the reminder writes Home Assistant
 asks for. It's optional and off by default.
 
-**Untested on a real bottle.** The integration's side and the app's logic are covered by tests with a
-fake bottle. The app has been built, and nobody has yet run it against a real one.
+**Seen working on one bottle and one phone:** a Pro on firmware 90.11, away from home, with a Pixel
+on Android 17. A sync pressed in the app handed over three sips, which landed in Home Assistant at
+the times they were drunk, an hour earlier, and the reminder writes went through. The first
+scheduled run, a minute later with the app open, also synced. **Not seen yet:** a scheduled run
+with the phone's screen off, records delivered late after a lost connection, firmware that wants an
+acknowledgement after each sip, and what it costs the phone's battery. Everything else rests on
+tests with a fake bottle.
 
 The phone decides nothing. It doesn't know what a record means, how big your bottle is or what your
 goal is. Home Assistant tells it which byte asks for the sips, works out the sips from the raw
