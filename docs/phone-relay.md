@@ -77,3 +77,26 @@ changes: no battery reading, no last sync time, no writes.
 
 A request that can't be used gets status 400 with `{"error": "…"}` and saves nothing. The app then
 moves those records to a `refused.jsonl` file in its storage, so they're neither lost nor retried for ever.
+
+## iPhone: not built, and a welcome contribution
+
+There's no relay for iPhone. The Home Assistant app can't stand in for one on either platform,
+because it doesn't open Bluetooth connections to devices, and neither can a browser or a Shortcut on
+iOS. It has to be an app of its own, and nobody here has an iPhone to build and test one with. The
+iOS Simulator has no Bluetooth, so it can only be proven on a real phone beside a real bottle.
+
+Nothing on the Home Assistant side is tied to Android. An iPhone app that speaks
+[the messages](#the-messages) above and follows [the steps of a run](#what-happens-on-each-run)
+would work with the integration as it is. If you write one, these are the parts that matter:
+
+- Store each record before doing anything else with it, and drop it only when Home Assistant
+  confirms it. The bottle hands each sip over once.
+- Write only what the replies ask for, and only to COMMANDS or SCHEDULE. The characteristics are in
+  [protocol.md](protocol.md).
+- Don't read WEIGHT.
+- The Android app wakes every 30 minutes and scans. iOS won't run an app on a timer like that; the
+  usual way there is to leave a connection request pending for the known bottle and let the system
+  wake the app when it comes into range. How well that works for these bottles is the open question.
+
+Open an issue before you start, so the work isn't done twice. It will be listed as Untested until
+someone has seen it sync a real bottle.

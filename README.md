@@ -60,7 +60,8 @@ uninstall it when you're happy.
 
 **Sips wait on the bottle until it's home.** There's no phone in your pocket doing the syncing any
 more, so nothing is read while the bottle is out of range of Home Assistant, unless you set up the
-optional [phone relay](docs/phone-relay.md). Sips taken away stay on
+optional [phone relay](docs/phone-relay.md), which is an Android app for now
+([an iPhone one would be welcome](docs/phone-relay.md#iphone-not-built-and-a-welcome-contribution)). Sips taken away stay on
 the bottle. When it comes home they land on the day you drank them, because each one records how
 long ago it happened. How many a bottle can hold isn't known yet. A sip that comes home late can't
 change what `Today` recorded on the day you drank it, so use `daily_totals` for history.
