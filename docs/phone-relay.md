@@ -8,8 +8,12 @@ asks for. It's optional and off by default.
 **Seen working on one bottle and one phone:** a Pro on firmware 90.11, away from home, with a Pixel
 on Android 17. A sync pressed in the app handed over three sips, which landed in Home Assistant at
 the times they were drunk, an hour earlier, and the reminder writes went through. The first
-scheduled run, a minute later with the app open, also synced. **Not seen yet:** a scheduled run
-with the phone's screen off, records delivered late after a lost connection, firmware that wants an
+scheduled run, a minute later with the app open, also synced. Checked afterwards in Home
+Assistant's store: each of the three was saved once, they sit in an unbroken run with the sips Home
+Assistant read itself before and after, and the day's total is their sum. Once the bottle was home
+again, Home Assistant read the next two sips itself, with the app's switch left on. **Not seen
+yet:** a scheduled run with the phone's screen off, the app reporting that it stood down at home,
+records delivered late after a lost connection, firmware that wants an
 acknowledgement after each sip, and what it costs the phone's battery. Everything else rests on
 tests with a fake bottle.
 
