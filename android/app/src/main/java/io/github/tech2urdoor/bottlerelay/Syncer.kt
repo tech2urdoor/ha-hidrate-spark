@@ -40,6 +40,17 @@ class Settings(context: Context) {
         get() = store.getBoolean("periodic", false)
         set(value) = store.edit().putBoolean("periodic", value).apply()
 
+    /** The last Find instruction from Home Assistant, as it was sent. */
+    var find: JSONObject?
+        get() = store.getString("find", null)?.let {
+            try {
+                JSONObject(it)
+            } catch (err: JSONException) {
+                null
+            }
+        }
+        set(value) = store.edit().putString("find", value?.toString()).apply()
+
     val log: String
         get() = store.getString("log", "") ?: ""
 
@@ -58,13 +69,13 @@ class Settings(context: Context) {
     }
 }
 
-class HttpHome(private val url: String) : Home {
+class HttpHome(private val url: String, private val timeoutMs: Int = 0) : Home {
     override fun post(body: JSONObject): Reply {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
+            connection.connectTimeout = if (timeoutMs > 0) timeoutMs else 15_000
+            connection.readTimeout = if (timeoutMs > 0) timeoutMs else 30_000
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")
             connection.outputStream.use { it.write(body.toString().toByteArray()) }
@@ -86,6 +97,11 @@ class HttpHome(private val url: String) : Home {
 object Syncer {
     private const val WORK_NAME = "relay"
     private const val SCAN_SECONDS = 30L
+    private const val FIND_SCAN_SECONDS = 15L
+    private const val FIND_WAIT_SECONDS = 20L
+
+    /** Someone is waiting on Find, so Home Assistant gets less time before the saved instruction is used. */
+    private const val FIND_TIMEOUT_MS = 8_000
     private val running = ReentrantLock()
 
     val PERMISSIONS = arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -109,6 +125,7 @@ object Syncer {
                         GattLink.scan(app, SCAN_SECONDS, settings.bottleAddress).firstOrNull()
                             ?.let { GattLink.open(app, it.device) }
                     },
+                    rememberFind = { settings.find = it },
                 ).run()
             }
         } catch (err: Exception) {
@@ -117,6 +134,34 @@ object Syncer {
             running.unlock()
         }
         settings.note(result)
+        return result
+    }
+
+    /** Makes the bottle glow. Waits for a sync that's running, since the bottle takes one connection at a time. */
+    fun find(context: Context): String {
+        val app = context.applicationContext
+        val settings = Settings(app)
+        val result = when {
+            settings.bottleAddress.isBlank() -> app.getString(R.string.needs_bottle)
+            !allowed(app) -> app.getString(R.string.needs_permission)
+            !running.tryLock(FIND_WAIT_SECONDS, TimeUnit.SECONDS) -> "A sync is still running, so try again shortly"
+            else -> try {
+                Finder(
+                    home = settings.url.takeIf { it.isNotBlank() }?.let { HttpHome(it, FIND_TIMEOUT_MS) },
+                    saved = { settings.find },
+                    remember = { settings.find = it },
+                    connect = {
+                        GattLink.scan(app, FIND_SCAN_SECONDS, settings.bottleAddress).firstOrNull()
+                            ?.let { GattLink.open(app, it.device) }
+                    },
+                ).run()
+            } catch (err: Exception) {
+                "Stopped: ${err.message ?: err.javaClass.simpleName}"
+            } finally {
+                running.unlock()
+            }
+        }
+        settings.note("Find: $result")
         return result
     }
 

@@ -37,6 +37,8 @@ class Relay(
     private val outbox: Outbox,
     private val connect: () -> Link?,
     private val now: () -> Double = { System.currentTimeMillis() / 1000.0 },
+    /** Keeps the Find instruction each check carries, for when Home Assistant can't be reached. */
+    private val rememberFind: (JSONObject) -> Unit = {},
 ) {
     fun run(): String {
         val late = try {
@@ -51,6 +53,7 @@ class Relay(
         }
         val go = check.body?.takeIf { check.code == 200 && it.has("go") }
             ?: return "That address isn't a relay that's turned on (${check.code})"
+        go.optJSONObject("find")?.let(rememberFind)
         if (!go.optBoolean("go")) return "The bottle is at home, so Home Assistant reads it$late"
 
         val link = try {

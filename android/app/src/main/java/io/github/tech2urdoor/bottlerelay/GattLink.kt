@@ -181,6 +181,36 @@ class GattLink private constructor() : Link {
             return link
         }
 
+        /**
+         * Hands over the signal strength of each advert from one bottle, until the time is up or
+         * `stopped` says so. For walking towards it after Find.
+         */
+        fun follow(context: Context, seconds: Long, address: String, stopped: () -> Boolean, heard: (Int) -> Unit) {
+            val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+            if (adapter == null || !adapter.isEnabled) throw IOException("Bluetooth is off")
+            val scanner = adapter.bluetoothLeScanner ?: throw IOException("Bluetooth is off")
+            val failure = AtomicInteger(0)
+            val listener = object : ScanCallback() {
+                override fun onScanResult(callbackType: Int, result: ScanResult) = heard(result.rssi)
+
+                override fun onScanFailed(errorCode: Int) {
+                    failure.set(errorCode)
+                }
+            }
+            val filter = ScanFilter.Builder().setDeviceAddress(address).build()
+            val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+            scanner.startScan(listOf(filter), settings, listener)
+            try {
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds)
+                while (System.nanoTime() < deadline && !stopped()) {
+                    if (failure.get() != 0) throw IOException("Android wouldn't scan for the bottle (${failure.get()})")
+                    Thread.sleep(250)
+                }
+            } finally {
+                scanner.stopScan(listener)
+            }
+        }
+
         /** Listens for bottles. With an address, stops at the first advert from that one. */
         fun scan(context: Context, seconds: Long, address: String? = null): List<ScanResult> {
             val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter

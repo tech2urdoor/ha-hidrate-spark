@@ -928,13 +928,37 @@ class RelayWebhookTest(Base):
         relay_webhook.async_update(mock.Mock(), self.entry)
         self.webhook.async_register.assert_not_called()
 
+    FIND = {"characteristic": module.protocol.GLOW_NOW, "hex": "b4"}
+
     def test_the_phone_is_told_to_stand_down_when_the_bottle_is_home(self):
         self.heard(2)
-        self.assertEqual(self.call({"step": "check"}), (200, {"go": False, "reason": "in_range"}))
+        self.assertEqual(self.call({"step": "check"}), (200, {"go": False, "reason": "in_range", "find": self.FIND}))
 
     def test_the_phone_goes_ahead_when_the_bottle_is_away(self):
         self.heard(None)
-        self.assertEqual(self.call({"step": "check"}), (200, {"go": True}))
+        self.assertEqual(self.call({"step": "check"}), (200, {"go": True, "find": self.FIND}))
+
+    def test_every_check_carries_find_in_the_chosen_style(self):
+        self.heard(None)
+        self.entry.options = {"glow_light": "effect_flash"}
+        self.assertEqual(self.call({"step": "check"})[1]["find"]["hex"], "34")
+
+    def test_find_away_from_home_hands_the_phone_the_write(self):
+        self.heard(None)
+        self.coordinator.async_find = mock.AsyncMock()
+        self.assertEqual(self.call({"step": "find"}), (200, {"done": False, "find": self.FIND}))
+        self.coordinator.async_find.assert_not_called()
+
+    def test_find_at_home_is_done_by_home_assistant(self):
+        self.heard(2)
+        self.coordinator.async_find = mock.AsyncMock()
+        self.assertEqual(self.call({"step": "find"}), (200, {"done": True}))
+        self.coordinator.async_find.assert_awaited_once()
+
+    def test_find_at_home_that_fails_falls_back_to_the_phone(self):
+        self.heard(2)
+        self.coordinator.async_find = mock.AsyncMock(side_effect=module.HomeAssistantError("no proxy"))
+        self.assertEqual(self.call({"step": "find"}), (200, {"done": False, "find": self.FIND}))
 
     def test_begin_gives_the_instructions(self):
         status, reply = self.call({"step": "begin", "firmware": "90.11"})
@@ -996,6 +1020,78 @@ class RelayWebhookTest(Base):
         ):
             self.assertEqual(self.call(body)[0], 400, body)
         self.assertEqual(self.coordinator.log.sips, [])
+
+
+class RoomTest(Base):
+    """The Room sensor repeats Bermuda's Area sensor for this bottle, and follows it if it comes or goes."""
+
+    def setUp(self):
+        super().setUp()
+        self.source = None
+        self.states = {}
+        patcher = mock.patch.object(
+            sensor_platform.bermuda, "area_entity_id", side_effect=lambda _hass, _address: self.source
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.unfollow = mock.Mock()
+        patcher = mock.patch.object(sensor_platform, "async_track_state_change_event", return_value=self.unfollow)
+        self.track = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.room = sensor_platform.RoomSensor(self.coordinator, sensor_platform.ROOM)
+        self.room.hass = mock.Mock()
+        self.room.hass.states.get = lambda entity_id: self.states.get(entity_id)
+        self.room.async_write_ha_state = mock.Mock()
+
+    def start(self):
+        asyncio.run(self.room.async_added_to_hass())
+        return self.room.hass.bus.async_listen.call_args.args[1]
+
+    def test_shows_bermudas_room(self):
+        self.source = "sensor.bottle_area"
+        self.states["sensor.bottle_area"] = SimpleNamespace(state="Kitchen")
+        self.start()
+        self.assertTrue(self.room.available)
+        self.assertEqual(self.room.native_value, "Kitchen")
+        self.assertEqual(self.room.extra_state_attributes, {"source": "sensor.bottle_area"})
+        self.assertEqual(self.track.call_args.args[1], ["sensor.bottle_area"])
+
+    def test_no_room_from_bermuda_is_unknown(self):
+        self.source = "sensor.bottle_area"
+        self.start()
+        self.assertIsNone(self.room.native_value)
+        for state in ("unknown", "unavailable", "not_home", ""):
+            self.states["sensor.bottle_area"] = SimpleNamespace(state=state)
+            self.assertIsNone(self.room.native_value, state)
+
+    def test_unavailable_until_bermuda_tracks_the_bottle_then_follows_it(self):
+        registry_changed = self.start()
+        self.assertFalse(self.room.available)
+        self.track.assert_not_called()
+        self.source = "sensor.bottle_area"
+        registry_changed(None)
+        self.assertTrue(self.room.available)
+        self.room.async_write_ha_state.assert_called_once()
+        self.source = "sensor.renamed_area"
+        registry_changed(None)
+        self.unfollow.assert_called_once()
+        self.assertEqual(self.track.call_args.args[1], ["sensor.renamed_area"])
+
+    def test_an_unrelated_registry_change_does_nothing(self):
+        self.source = "sensor.bottle_area"
+        registry_changed = self.start()
+        registry_changed(None)
+        self.assertEqual(self.track.call_count, 1)
+        self.room.async_write_ha_state.assert_not_called()
+
+    def test_only_offered_where_bermuda_is_set_up(self):
+        entry = SimpleNamespace(runtime_data=self.coordinator)
+        for installed, count in ((False, 1), (True, 2)):
+            added = []
+            with mock.patch.object(sensor_platform.bermuda, "installed", return_value=installed):
+                asyncio.run(sensor_platform.async_setup_entry(mock.Mock(), entry, lambda e: added.append(list(e))))
+            self.assertEqual(len(added), count)
+            self.assertEqual(any(isinstance(x, sensor_platform.RoomSensor) for batch in added for x in batch), installed)
 
 
 class RelayOptionsTest(unittest.TestCase):

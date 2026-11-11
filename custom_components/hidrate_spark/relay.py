@@ -10,10 +10,12 @@ from typing import Any
 
 from .protocol import (
     COMMANDS,
+    GLOW_NOW,
     SCHEDULE,
     Firmware,
     Packet,
     acknowledge_command,
+    find_command,
     history_command,
     parse_packet,
 )
@@ -107,6 +109,15 @@ def status_from(body: dict[str, Any]) -> bytes | None:
         return bytes.fromhex(body.get("commands") or "")[:MAX_RECORD_BYTES] or None
     except (TypeError, ValueError):
         return None
+
+
+def find_reply(light: int) -> dict[str, str]:
+    """The one write that makes the bottle glow now, in the style picked in Configure.
+
+    Sent with every check, so the phone can still make the bottle glow when Home Assistant can't be
+    reached. The phone writes it only when someone presses Find, and only to GLOW_NOW.
+    """
+    return {"characteristic": GLOW_NOW, "hex": find_command(light).hex()}
 
 
 def writes_reply(writes: list[tuple[str, bytes]]) -> list[dict[str, str]]:

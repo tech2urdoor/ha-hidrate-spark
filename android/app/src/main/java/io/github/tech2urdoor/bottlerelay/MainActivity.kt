@@ -13,9 +13,15 @@ import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
+    companion object {
+        private const val FOLLOW_SECONDS = 60L
+        private const val QUIET_SECONDS = 5L
+    }
+
     private lateinit var settings: Settings
     private lateinit var address: EditText
     private lateinit var bottle: TextView
@@ -24,6 +30,8 @@ class MainActivity : Activity() {
     private lateinit var choose: Button
     private lateinit var background: TextView
     private lateinit var allowBackground: Button
+    private lateinit var find: Button
+    private lateinit var signal: TextView
 
     @SuppressLint("UseSwitchCompatOrMaterialCode")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +51,9 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.save).setOnClickListener { saveAddress() }
         choose.setOnClickListener { chooseBottle() }
         sync.setOnClickListener { syncNow() }
+        find = findViewById(R.id.find)
+        signal = findViewById(R.id.signal)
+        find.setOnClickListener { findBottle() }
 
         val periodic = findViewById<Switch>(R.id.periodic)
         periodic.isChecked = settings.periodic
@@ -142,6 +153,67 @@ class MainActivity : Activity() {
                     }
                     .show()
             }
+        }
+    }
+
+    @Volatile
+    private var following = false
+
+    override fun onPause() {
+        super.onPause()
+        following = false
+    }
+
+    /** Makes the bottle glow, then shows how strong its signal is for a while, to walk towards it. */
+    private fun findBottle() {
+        find.isEnabled = false
+        find.setText(R.string.finding)
+        signal.visibility = View.GONE
+        thread {
+            val result = Syncer.find(this)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                Toast.makeText(this, result, Toast.LENGTH_LONG).show()
+                show()
+                signal.setText(R.string.signal_listening)
+                signal.visibility = View.VISIBLE
+            }
+            followSignal()
+            runOnUiThread {
+                find.isEnabled = true
+                find.setText(R.string.find)
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun followSignal() {
+        val address = Settings(this).bottleAddress
+        if (address.isBlank() || !Syncer.allowed(this)) return
+        following = true
+        var smoothed: Double? = null
+        var lastHeard = System.nanoTime()
+        var lastShown = 0L
+        try {
+            GattLink.follow(this, FOLLOW_SECONDS, address, stopped = {
+                val quiet = System.nanoTime() - lastHeard > TimeUnit.SECONDS.toNanos(QUIET_SECONDS)
+                if (quiet) runOnUiThread { signal.setText(R.string.signal_lost) }
+                !following
+            }) { rssi ->
+                // Single adverts swing by 10 dB or more, so show a running average.
+                val average = smoothed?.let { it * 0.7 + rssi * 0.3 } ?: rssi.toDouble()
+                smoothed = average
+                lastHeard = System.nanoTime()
+                if (lastHeard - lastShown > TimeUnit.MILLISECONDS.toNanos(500)) {
+                    lastShown = lastHeard
+                    val level = average.toInt()
+                    runOnUiThread { signal.text = getString(R.string.signal, Finder.closeness(level), level) }
+                }
+            }
+        } catch (err: Exception) {
+            runOnUiThread { signal.text = err.message ?: err.javaClass.simpleName }
+        } finally {
+            following = false
         }
     }
 

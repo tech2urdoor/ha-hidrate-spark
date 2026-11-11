@@ -10,6 +10,7 @@ from aiohttp import web
 from homeassistant.components import webhook
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 
 from . import relay, session
 from .const import CONF_PHONE_RELAY, CONF_WEBHOOK_ID, DOMAIN
@@ -70,10 +71,21 @@ async def _async_handle(
     step = body.get("step")
     try:
         if step == "check":
+            find = relay.find_reply(coordinator.light)
             # In range of Home Assistant, the bottle is read from here and the phone can save its battery.
             if coordinator.heard_recently():
-                return web.json_response({"go": False, "reason": "in_range"})
-            return web.json_response({"go": True})
+                return web.json_response({"go": False, "reason": "in_range", "find": find})
+            return web.json_response({"go": True, "find": find})
+        if step == "find":
+            # At home, Home Assistant's own connection makes it glow, so the phone isn't fighting it for the bottle.
+            if coordinator.heard_recently():
+                try:
+                    await coordinator.async_find()
+                except HomeAssistantError as err:
+                    _LOGGER.debug("Find from home didn't reach the bottle, so the phone will try: %s", err)
+                else:
+                    return web.json_response({"done": True})
+            return web.json_response({"done": False, "find": relay.find_reply(coordinator.light)})
         if step == "begin":
             return web.json_response(relay.instructions(relay.firmware_from(body)))
         if step == "sips":

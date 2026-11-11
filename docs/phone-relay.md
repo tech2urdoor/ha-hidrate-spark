@@ -74,7 +74,27 @@ on the next run.
 The same things a sync from Home Assistant writes, listed in [what-it-writes.md](what-it-writes.md):
 the request for sips, the `0x33` after each sip on firmware below 30, and the reminder writes.
 The app refuses any write that isn't to COMMANDS or SCHEDULE, whatever a reply says, and the
-integration refuses to ask for one. The app can't change the glow colour, calibrate or run Find.
+integration refuses to ask for one. The one exception is **Find bottle**, below: a single byte to
+GLOW_NOW, written only when you press it. The app can't change the glow colour or calibrate.
+
+## Find bottle
+
+**Untested on a real bottle.** Pressing **Find bottle** in the app makes the bottle glow, the same
+as the `Find` button in Home Assistant:
+
+1. The app asks Home Assistant first. If Home Assistant has heard the bottle in the last two
+   minutes, it makes the bottle glow over its own connection and the phone does nothing more. The
+   bottle takes one connection at a time, so this keeps the two from fighting over it.
+2. Otherwise Home Assistant replies with the byte to write, and the phone connects and writes it to
+   GLOW_NOW. If Home Assistant can't be reached within 8 seconds, the phone uses the byte from its
+   last sync. With no sync yet, it has nothing to go on and writes nothing.
+3. For the next minute, the screen shows how strong the bottle's signal is, in words and in dBm, so
+   you can walk towards it. The number jumps around: a body or a wall in the way costs 10 dB or more.
+
+The app refuses any Find instruction that isn't exactly one byte to GLOW_NOW. Bluetooth reaches
+about 10 metres, so the phone has to be near the bottle already. It can't find a bottle left
+somewhere else. A bottle that has never had a glow colour set may show nothing, as with Find in
+Home Assistant.
 
 It never reads WEIGHT, so `Water left` comes from sips while the bottle is away.
 
@@ -84,7 +104,8 @@ Every call is a JSON `POST` to the relay address. Byte strings are lower-case he
 
 | Step | The phone sends | Home Assistant replies |
 |---|---|---|
-| `check` | `{"step": "check"}` | `{"go": true}`, or `{"go": false, "reason": "in_range"}` |
+| `check` | `{"step": "check"}` | `{"go": true, "find": {…}}`, or `{"go": false, "reason": "in_range", "find": {…}}` |
+| `find` | `{"step": "find"}` | `{"done": true}` if Home Assistant made the bottle glow itself, or `{"done": false, "find": {"characteristic": "<GLOW_NOW uuid>", "hex": "b4"}}` |
 | `begin` | `{"step": "begin", "firmware": "90.11"}` | `{"go": true, "ask": "57", "acknowledge": null, "idle_seconds": 10}`, or `{"go": false, "reason": "unsupported"}` |
 | `sips` | `{"step": "sips", "firmware": "90.11", "connected": true, "battery": 80, "commands": "80000000", "records": [{"hex": "…", "received": 1800000000.5}]}` | `{"received": 1, "saved": 1, "writes": [{"characteristic": "<uuid>", "hex": "…"}]}` |
 
@@ -92,6 +113,10 @@ Every call is a JSON `POST` to the relay address. Byte strings are lower-case he
 `ask` is written to SIPS to request the sips, and written again whenever the bottle answers with a
 count of sips still waiting. `acknowledge`, when it isn't null, is written to SIPS after each record
 is stored. Reading stops when nothing has arrived for `idle_seconds`.
+
+`find` is the one write that makes the bottle glow, in the style set by the **Glow** option. Every
+check carries it, and the app keeps the latest, so Find still works when Home Assistant can't be
+reached.
 
 `connected` is false when the records are from an earlier run. They're saved, and nothing else
 changes: no battery reading, no last sync time, no writes.

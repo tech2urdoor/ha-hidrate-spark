@@ -31,7 +31,8 @@ yours isn't in the table below, [please report it](CONTRIBUTING.md#report-your-b
 | Refills | `Last refill` sensor, with `amount_ml` and `exact_time` attributes. Usually noticed when the next sip starts higher than the last one stopped, so it means "by this time" unless `exact_time` is true |
 | Battery | `Battery` sensor, and `Last charged`: the last sync that found the bottle on its charger, so roughly when it came off. On a bottle whose `Battery` reading can't be trusted, time since `Last charged` is the better guide |
 | Charging | `Charging` binary sensor, and `Battery state`: charging, charged or not charging. Both come from the bottle's own status at each sync. On its charger the bottle syncs at least every 5 minutes, and for 15 minutes after, which costs its battery nothing, so lifting it off shows within minutes |
-| Find my bottle | `Find` button |
+| Find my bottle | `Find` button, which works while the bottle is in range of Home Assistant. Away from home, the [relay app](docs/phone-relay.md#find-bottle) has a Find button of its own (untested on a real bottle) |
+| Where it is | With [Bermuda](#bermuda), a `Room` sensor on the bottle's device |
 | Marks | `Mark empty` and `Mark full` buttons. These only remember a reading in Home Assistant and write nothing to the bottle, so pressing one again puts it right |
 | Calibration | `Calibrate empty` and `Calibrate full` buttons, disabled by default so they can't be pressed by accident |
 | Glow colour | `Glow colour` select with eight colours, disabled by default. Firmware 50 to 59, and 80 to 99. [It changes the bottle's own settings, at your own risk](docs/what-it-writes.md#only-when-you-change-the-glow-colour) |
@@ -120,6 +121,13 @@ unexpected, setup changes nothing in Bermuda, tells you how to add the bottle yo
 on. Bermuda can only pick a device it has already heard, so if the bottle is new to it, that's the
 likely reason. **Untested on a real setup:** the automatic path has only run in tests, against
 the flow seen in Bermuda's own settings. Adding a bottle by hand in Bermuda works.
+
+Bermuda puts what it knows on a device of its own, apart from the bottle. So wherever Bermuda is
+set up, the bottle's device also gets a **Room** sensor that repeats Bermuda's `Area` sensor for
+that bottle. It's unavailable until Bermuda tracks the bottle, and unknown whenever Bermuda has no
+room for it, which includes any time the bottle is away from home. It's only as steady as Bermuda:
+one bottle has been seen hopping between neighbouring rooms while it sat still. Nothing is worked out
+here, and its `source` attribute names the Bermuda sensor it follows.
 
 ## Options
 

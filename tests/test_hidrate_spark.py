@@ -1120,6 +1120,10 @@ class RelayTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 r.writes_reply([(uuid, bytes(1))])
 
+    def test_find_is_one_byte_to_glow_now_in_the_chosen_style(self):
+        for name, light in p.LIGHTS.items():
+            self.assertEqual(r.find_reply(light), {"characteristic": p.GLOW_NOW, "hex": f"{light:02x}"}, name)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

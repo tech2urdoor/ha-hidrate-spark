@@ -81,6 +81,10 @@ writes in the two "Every sync" tables above from the phone, using bytes Home Ass
 makes no others: the integration refuses to ask a phone to write anywhere but COMMANDS and SCHEDULE,
 and the app refuses if asked. A test holds each side to that.
 
+The exception is the app's **Find bottle** button: when you press it, the phone writes Find's one
+byte to GLOW_NOW, as in the table above. The app writes nothing else there, and nothing at all
+unless the button is pressed.
+
 ## What it never writes
 
 These four are in `NEVER_WRITE` in `protocol.py`. Nothing in this integration writes to them.

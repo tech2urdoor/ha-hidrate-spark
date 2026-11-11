@@ -27,6 +27,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | File | What it does |
 |---|---|
 | `Relay.kt` | One sync, start to finish. No Android in it, so the tests run it against a fake bottle |
+| `Finder.kt` | Find bottle: ask Home Assistant, or else use the saved instruction, then one write to GLOW_NOW |
 | `Outbox.kt` | Records read off the bottle, kept on disk until Home Assistant confirms them |
 | `GattLink.kt` | The Bluetooth connection and the scan |
 | `Syncer.kt` | Settings, the call to Home Assistant, and the 30-minute schedule |
@@ -34,4 +35,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 It asks for **Nearby devices**, the internet, and to be left out of battery optimisation so the
 30-minute runs aren't held back, and nothing else. It keeps the relay address, the
-chosen bottle's address and name, and the last 40 results, all in the app's private storage.
+chosen bottle's address and name, the last Find instruction from Home Assistant, and the last 40
+results, all in the app's private storage.
+
+**Find bottle** (0.3.0) makes the bottle glow and then shows its signal strength for a minute.
+Untested on a real bottle. See [docs/phone-relay.md](../docs/phone-relay.md#find-bottle).

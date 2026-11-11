@@ -13,6 +13,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +32,20 @@ def _entry(hass: HomeAssistant) -> Any | None:
 def available(hass: HomeAssistant) -> bool:
     """Whether to offer it at all: Bermuda installed and running."""
     return _entry(hass) is not None
+
+
+def installed(hass: HomeAssistant) -> bool:
+    """Whether Bermuda is set up at all, loaded or not. Decides whether the bottle gets a Room sensor."""
+    return bool(hass.config_entries.async_entries(DOMAIN))
+
+
+def area_entity_id(hass: HomeAssistant, address: str) -> str | None:
+    """Bermuda's Area sensor for this bottle, if Bermuda tracks it.
+
+    Bermuda gives a tracked device its own device in Home Assistant, with an Area sensor whose unique id is
+    the Bluetooth address in lower case. Seen on Bermuda 0.8.7.
+    """
+    return er.async_get(hass).async_get_entity_id("sensor", DOMAIN, address.lower())
 
 
 async def async_track(hass: HomeAssistant, address: str) -> bool:
