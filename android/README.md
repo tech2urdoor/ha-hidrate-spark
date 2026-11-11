@@ -38,5 +38,9 @@ It asks for **Nearby devices**, the internet, and to be left out of battery opti
 chosen bottle's address and name, the last Find instruction from Home Assistant, and the last 40
 results, all in the app's private storage.
 
+The screen (0.4.0) is drawn with the platform's own theme and the phone's own colours, which
+follow the wallpaper on Android 12 and later, in light and dark. It's plain XML, with no UI library
+and nothing that animates, so it costs nothing while the app isn't open.
+
 **Find bottle** (0.3.0) makes the bottle glow and then shows its signal strength for a minute.
 Untested on a real bottle. See [docs/phone-relay.md](../docs/phone-relay.md#find-bottle).

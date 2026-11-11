@@ -13,8 +13,8 @@ android {
         // 33 is the first version with the Bluetooth calls that hand a value over with its callback.
         minSdk = 33
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     compileOptions {

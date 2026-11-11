@@ -4,9 +4,13 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.os.PowerManager
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.StyleSpan
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -28,7 +32,8 @@ class MainActivity : Activity() {
     private lateinit var log: TextView
     private lateinit var sync: Button
     private lateinit var choose: Button
-    private lateinit var background: TextView
+    private lateinit var held: View
+    private lateinit var allowed: View
     private lateinit var allowBackground: Button
     private lateinit var find: Button
     private lateinit var signal: TextView
@@ -43,7 +48,8 @@ class MainActivity : Activity() {
         log = findViewById(R.id.log)
         sync = findViewById(R.id.sync)
         choose = findViewById(R.id.choose)
-        background = findViewById(R.id.background)
+        held = findViewById(R.id.held)
+        allowed = findViewById(R.id.allowed)
         allowBackground = findViewById(R.id.allow_background)
         allowBackground.setOnClickListener { askToRunInBackground() }
 
@@ -80,10 +86,23 @@ class MainActivity : Activity() {
         } else {
             getString(R.string.bottle_chosen, settings.bottleName.ifBlank { "h2o" })
         }
-        log.text = settings.log
+        val lines = settings.log
+        log.text = if (lines.isBlank()) getString(R.string.log_empty) else stampsInBold(lines)
         val free = runsInBackground()
-        background.setText(if (free) R.string.background_allowed else R.string.background_held)
-        allowBackground.visibility = if (free) View.GONE else View.VISIBLE
+        held.visibility = if (free) View.GONE else View.VISIBLE
+        allowed.visibility = if (free) View.VISIBLE else View.GONE
+    }
+
+    /** The log's lines start with "Tue 14:30  ", which reads easier in bold. */
+    private fun stampsInBold(text: String): CharSequence {
+        val out = SpannableStringBuilder(text)
+        var start = 0
+        for (line in text.split('\n')) {
+            val gap = line.indexOf("  ")
+            if (gap > 0) out.setSpan(StyleSpan(Typeface.BOLD), start, start + gap, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            start += line.length + 1
+        }
+        return out
     }
 
     /** True once Android has agreed not to hold this app's background work back. */

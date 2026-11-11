@@ -5,8 +5,8 @@
     <string name="address_label">Relay address from Home Assistant</string>
     <string name="address_hint">https://…/api/webhook/…</string>
     <string name="save">Save address</string>
-    <string name="bottle_none">No bottle chosen</string>
-    <string name="bottle_chosen">Bottle: %1$s</string>
+    <string name="bottle_none">No bottle chosen yet</string>
+    <string name="bottle_chosen">%1$s</string>
     <string name="choose">Choose bottle</string>
     <string name="choosing">Looking for bottles…</string>
     <string name="none_found">No bottle heard. Stand it nearby and try again.</string>
@@ -22,6 +22,10 @@
     <string name="saved">Saved</string>
     <string name="bad_address">Use an https address. Plain http only works for an address on your home network.</string>
     <string name="log_title">Recent syncs</string>
+    <string name="log_empty">Nothing synced yet.</string>
+    <string name="section_bottle">Bottle</string>
+    <string name="section_sync">Syncing</string>
+    <string name="section_home_assistant">Home Assistant</string>
     <string name="find">Find bottle</string>
     <string name="finding">Making it glow…</string>
     <string name="needs_bottle">Choose a bottle first.</string>

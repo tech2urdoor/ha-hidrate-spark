@@ -8,99 +8,193 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:paddingStart="16dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="24dp">
 
-        <TextView
+        <!-- Header -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_badge"
+                android:importantForAccessibility="no"
+                android:scaleType="center"
+                android:src="@drawable/ic_drop" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:accessibilityHeading="true"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/app_name"
+                android:textColor="@color/text"
+                android:textSize="26sp" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/Relay.Quiet"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
             android:text="@string/intro" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/address_label" />
+        <!-- The bottle -->
+        <LinearLayout style="@style/Relay.Card">
 
-        <EditText
-            android:id="@+id/address"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/address_hint"
-            android:importantForAutofill="no"
-            android:inputType="textUri|textNoSuggestions"
-            android:minHeight="48dp" />
+            <TextView
+                style="@style/Relay.Section"
+                android:text="@string/section_bottle" />
 
-        <Button
-            android:id="@+id/save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/save" />
+            <TextView
+                android:id="@+id/bottle"
+                style="@style/Relay.Body"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/bottle_none"
+                android:textSize="22sp" />
 
-        <TextView
-            android:id="@+id/bottle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/bottle_none" />
+            <Button
+                android:id="@+id/find"
+                style="@style/Relay.Button.Filled"
+                android:layout_marginTop="16dp"
+                android:text="@string/find" />
 
-        <Button
-            android:id="@+id/choose"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/choose" />
+            <TextView
+                android:id="@+id/signal"
+                style="@style/Relay.Body"
+                android:layout_marginTop="12dp"
+                android:accessibilityLiveRegion="polite"
+                android:background="@drawable/bg_signal"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:minHeight="56dp"
+                android:padding="16dp"
+                android:textColor="@color/on_primary_soft"
+                android:textSize="20sp"
+                android:visibility="gone" />
 
-        <Switch
-            android:id="@+id/periodic"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:minHeight="48dp"
-            android:text="@string/every_half_hour" />
+            <Button
+                android:id="@+id/choose"
+                style="@style/Relay.Button.Tonal"
+                android:text="@string/choose" />
+        </LinearLayout>
 
-        <TextView
-            android:id="@+id/background"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/background_held" />
+        <!-- Syncing -->
+        <LinearLayout style="@style/Relay.Card">
 
-        <Button
-            android:id="@+id/allow_background"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/allow_background" />
+            <TextView
+                style="@style/Relay.Section"
+                android:text="@string/section_sync" />
 
-        <Button
-            android:id="@+id/sync"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/sync_now" />
+            <Switch
+                android:id="@+id/periodic"
+                style="@style/Relay.Body"
+                android:minHeight="48dp"
+                android:text="@string/every_half_hour"
+                android:textSize="16sp" />
 
-        <Button
-            android:id="@+id/find"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/find" />
+            <TextView
+                android:id="@+id/allowed"
+                style="@style/Relay.Quiet"
+                android:layout_marginTop="4dp"
+                android:drawableStart="@drawable/ic_check"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
+                android:text="@string/background_allowed"
+                android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/signal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:textSize="20sp"
-            android:visibility="gone" />
+            <LinearLayout
+                android:id="@+id/held"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_notice"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/log_title"
-            android:textStyle="bold" />
+                <TextView
+                    style="@style/Relay.Body"
+                    android:drawableStart="@drawable/ic_notice"
+                    android:drawablePadding="10dp"
+                    android:text="@string/background_held"
+                    android:textColor="@color/on_notice"
+                    android:textSize="14sp" />
 
-        <TextView
-            android:id="@+id/log"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textIsSelectable="true" />
+                <Button
+                    android:id="@+id/allow_background"
+                    style="@style/Relay.Button.Filled"
+                    android:text="@string/allow_background" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/sync"
+                style="@style/Relay.Button.Filled"
+                android:layout_marginTop="16dp"
+                android:text="@string/sync_now" />
+        </LinearLayout>
+
+        <!-- Home Assistant -->
+        <LinearLayout style="@style/Relay.Card">
+
+            <TextView
+                style="@style/Relay.Section"
+                android:text="@string/section_home_assistant" />
+
+            <TextView
+                style="@style/Relay.Quiet"
+                android:text="@string/address_label" />
+
+            <EditText
+                android:id="@+id/address"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_field"
+                android:hint="@string/address_hint"
+                android:importantForAutofill="no"
+                android:inputType="textUri|textNoSuggestions"
+                android:minHeight="52dp"
+                android:paddingStart="16dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="12dp"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_quiet"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/save"
+                style="@style/Relay.Button.Tonal"
+                android:layout_width="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/save" />
+        </LinearLayout>
+
+        <!-- Log -->
+        <LinearLayout style="@style/Relay.Card">
+
+            <TextView
+                style="@style/Relay.Section"
+                android:text="@string/log_title" />
+
+            <TextView
+                android:id="@+id/log"
+                style="@style/Relay.Body"
+                android:lineSpacingMultiplier="1.25"
+                android:text="@string/log_empty"
+                android:textIsSelectable="true"
+                android:textSize="13sp" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>
